@@ -40,7 +40,7 @@ NeurIPS 2019 Tutorial on [Deep Learning with Bayesian Principles](https://slides
 ### PAC-Bayes / Generalization
 
 - [**User-friendly Introduction to PAC-Bayes Bounds**](https://arxiv.org/abs/2110.11216)  
-  Pierre Alquier. Foundations and Trends in Machine Learning, 2024; arXiv version 2021.
+  Pierre Alquier. Foundations and Trends in Machine Learning, 2024.
 
 - [**PAC-Bayes Compression Bounds So Tight That They Can Explain Generalization**](https://arxiv.org/abs/2211.13609)  
   Sanae Lotfi, Marc Finzi, Sanyam Kapoor, Andres Potapczynski, Micah Goldblum, Andrew Gordon Wilson. NeurIPS 2022.
