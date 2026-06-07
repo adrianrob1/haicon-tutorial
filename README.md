@@ -1,5 +1,5 @@
 # haicon-tutorial
-IPython notebooks to follow along for the HAICON 26 tutorial on 'Deep Learning with Bayesian Principles'. 
+IPython notebooks to follow along for the Helmholtz AI Conference (HAICON) 2026 tutorial on 'Deep Learning with Bayesian Principles'. 
 
 ## Installation and Getting Started
 
