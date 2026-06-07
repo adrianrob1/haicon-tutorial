@@ -12,7 +12,7 @@ uv sync --locked
 Then, try out the python notebooks to follow along :) 
 
 ## More IVON Examples
-* Official repository of the IVON optimizer: [http://github.com/team-approx-bayes/ivon](http://github.com/team-approx-bayes/ivon).
+* Official repository of the IVON optimizer: [http://github.com/team-approx-bayes/ivon](http://github.com/team-approx-bayes/ivon)
 * Many practical examples from the original paper: [http://github.com/team-approx-bayes/ivon-experiments](http://github.com/team-approx-bayes/ivon-experiments)
 * Federated learning with IVON: [http://github.com/team-approx-bayes/bayes-admm](http://github.com/team-approx-bayes/bayes-admm)
 * Low-rank adaptation with IVON: [https://github.com/team-approx-bayes/ivon-lora](https://github.com/team-approx-bayes/ivon-lora)
