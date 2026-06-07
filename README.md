@@ -18,7 +18,9 @@ Then, try out the python notebooks to follow along :)
 * Low-rank adaptation with IVON: [https://github.com/team-approx-bayes/ivon-lora](https://github.com/team-approx-bayes/ivon-lora)
 * IVON and Edge-of-Stability: [https://github.com/Avra98/variationallearning_eos](https://github.com/Avra98/variationallearning_eos)
 
-## Recommended Papers
+## Recommended Papers and Links 
+
+NeurIPS 2019 Tutorial on [Deep Learning with Bayesian Principles](https://slideslive.com/38923183/deep-learning-with-bayesian-principles).
 
 ### Variational Learning / Bayesian Neural Networks
 
