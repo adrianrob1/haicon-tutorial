@@ -102,8 +102,10 @@ Median steps to `< 1e-4`:
   `hess_init` was (§2). A over-damps narrow nets (0/3 reach `1e-4` at `w=32`,
   median loss `1.8e-3`) but is fastest at `w=512` (30 steps). B/C remove the
   narrow-width failure but need `~2000` steps at `w=512`: constant `rho` forces
-  `h0 ∝ fan_in`, so the Newton step `lr/(h0+wd)` shrinks with width. D is
-  slowest almost everywhere.
+  `h0 ∝ fan_in`, so the middle layers' Newton step `lr/(h0+wd)` shrinks with
+  width **when whitening is off — the shipped setting**. With
+  `whiten_prec_grad=True` the two rules become equivalent; see the mechanism
+  check below. D is slowest almost everywhere.
 - **The initial level persists.** At `w=128` the middle layers end at
   `r = ||h - h0|| / (sqrt(P) h0)` of only 1–3, with `mean_h` just
   `1.6 – 4.5×` the decayed init envelope `h0 * beta2^7500`, i.e. the initial
@@ -160,6 +162,68 @@ controls the noise magnitude.
 Caveats: `c` (or equivalently `rho`) is worth re-calibrating per `ess`/task
 family, and the near-separation failures above persist regardless of the rule.
 No single rule eliminates the seed fragility of this setup.
+
+## Mechanism check: whitening vs effective learning rate (PR #2 review)
+
+Reviewer note: with `whiten_prec_grad=True` (EVON's default), Newton–Schulz
+whitening is approximately scale-invariant, so a uniform scalar `h0` should
+mostly rescale the pre-whitened update rather than shrink the final step; the
+wide-width slowdown of the RMS rule would then not be an `lr/(h0+wd)` effect.
+The shipped runs, however, set `whiten_prec_grad=False` explicitly (not the
+default), so the concern does not apply to them as written. To settle it we
+bracketed both settings.
+
+Matrix: `w in {128,512}` × `{A fixed, C RMS}` × `sampling {on, off}` ×
+`whiten_prec_grad {False,True}` × seeds {0,2}. Deterministic mode =
+`disable_sampling()` with no `sampled_params` context (h adapts by the `g^2`
+EMA fallback, no noise). Raw data: `whiten_diag.csv`.
+
+Static first-step probe (seed-2 init, full-batch gradient, per-layer
+`||update||`, before any adaptation):
+
+| width | layer | raw A/C | whitened A/C |
+| --- | --- | --- | --- |
+| 512 | W2–W4 | 3.97 – 3.99 | 1.000 |
+| 512 | W1 | 0.02 | 1.000 |
+| 512 | W5 | 3.95 | 1.000 |
+| 128 | all | 0.02 – 1.01 | 1.000 |
+
+With whitening on the per-layer update magnitude is *identical* for A and C
+(ratio 1.000), exactly as argued. With whitening off (shipped), the middle
+layers' raw update is 4× larger for A at `w=512`, while C's W1 gets a 64×
+larger step (`h0=5.3e-5`) — a redistribution, not a uniform slowdown. Middle
+layers dominate the function, so C trains slower at wide width.
+
+Training, steps to `1e-4` (two seeds):
+
+| width | whiten | sampling | A | C |
+| --- | --- | --- | --- | --- |
+| 128 | off | off | 1791 / 1871 | 1685 / 1669 |
+| 128 | off | on | 1487 / 2222 | 715 / 1102 |
+| 128 | on | off | 2661 / 2727 | 2690 / 2741 |
+| 128 | on | on | fail 0.29–0.44 | fail 0.28–0.44 |
+| 512 | off | off | 1432 / 1526 | 4721 / 4744 |
+| 512 | off | on | 30 / 104 | 1840 / 2167 |
+| 512 | on | off | 2110 / 2147 | 2089 / 2103 |
+| 512 | on | on | fail 0.73 / 0.94 | fail 0.36 / 0.90 |
+
+- **Whitening on:** A and C are indistinguishable — deterministic final losses
+  `1.2e-5` vs `1.2e-5` at `w=128` and `7.7e-6` vs `7.6e-6` at `w=512`, and the
+  sampling runs fail identically. Confirms the scaling argument.
+- **Whitening off (shipped):** the gap is real. At `w=512` A reaches `1e-4` in
+  ~1450 steps deterministically (C ~4730; ratio 3.3, matching the 4× raw
+  update) and in 30–104 steps with sampling (C ~2000). So in the shipped
+  regime the speed gap is an effective-step effect, with posterior noise as a
+  secondary channel: fixed `h0` gives `rho=3.58` at `w=512` vs C's 1.79, and
+  A's mean displacement is ~10× C's.
+- **Whitening is not usable on this task anyway:** with sampling it fails to
+  fit (loss 0.3–0.9) at both widths, and deterministically it is ~1.5× slower
+  than no whitening. That is why the config disables it.
+
+Net: the original wording was correct *for the config actually used*
+(`whiten_prec_grad=False`) but over-general. Qualified finding: the RMS rule
+slows wide models through the effective step only when whitening is off; with
+whitening on, A and C are equivalent.
 
 ## Reproduce
 
