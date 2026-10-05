@@ -1,0 +1,4 @@
+# generated: sweep results (regenerate with sweep.py / nn_sweep.py) and the built site (deployed to gh-pages)
+nn_runs/
+sweep.json
+site/

@@ -1,0 +1,1367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>EVON hyperparameter explorer · 2D logistic regression</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try { const t = localStorage.getItem('evon-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<style>
+.viz-root {
+  color-scheme: light;
+  --page: #f4f3f0;
+  --surface-1: #fcfcfb;
+  --border: #e2e1dc;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #8a8984;
+  --grid: #e9e8e4;
+  --evon: #2a78d6;
+  --exact: #eb6834;
+  --qstar: #e87ba4;
+  --ivon: #1baf7a;
+  --laplace: #0b0b0b;
+  --probe: #4a3aa7;
+  --pin: #8a8984;
+  --cls0: #e34948;
+  --cls1: #2a78d6;
+  --land-lo: 252;
+  --land-hi: 120;
+  --seq-0: #f0efec;
+  --seq-1: #cde2fb;
+  --seq-2: #86b6ef;
+  --seq-3: #3987e5;
+  --seq-4: #1c5cab;
+  --seq-5: #0d366b;
+  --div-neg: 227, 73, 72;
+  --div-pos: 42, 120, 214;
+  --land-lo-rgb: 253, 253, 252;
+  --land-hi-rgb: 120, 132, 152;
+  --glow-1: rgba(42, 120, 214, .10);
+  --glow-2: rgba(235, 104, 52, .08);
+  --shadow: 0 1px 2px rgba(20, 20, 30, .04), 0 10px 30px -18px rgba(20, 30, 60, .25);
+  --shadow-hover: 0 1px 2px rgba(20, 20, 30, .05), 0 16px 40px -18px rgba(20, 30, 60, .32);
+  --seg-bg: #ecebe7;
+  --chip-on: rgba(42, 120, 214, .10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --page: #111110; --surface-1: #1a1a19; --border: #33332f;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8a8984; --grid: #2a2a27;
+    --evon: #3987e5; --exact: #d95926; --qstar: #d55181; --ivon: #199e70; --laplace: #ffffff; --probe: #9085e9; --pin: #8a8984;
+    --cls0: #e66767; --cls1: #3987e5;
+    --land-lo: 26; --land-hi: 95;
+    --seq-0: #383835; --seq-1: #104281; --seq-2: #1c5cab; --seq-3: #2a78d6; --seq-4: #6da7ec; --seq-5: #cde2fb;
+    --div-neg: 230, 103, 103; --div-pos: 57, 135, 229;
+    --land-lo-rgb: 32, 35, 42; --land-hi-rgb: 92, 104, 126;
+    --glow-1: rgba(57, 135, 229, .16); --glow-2: rgba(217, 89, 38, .10);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -16px rgba(0, 0, 0, .7);
+    --shadow-hover: 0 1px 2px rgba(0, 0, 0, .5), 0 18px 44px -16px rgba(0, 0, 0, .8);
+    --seg-bg: #262624; --chip-on: rgba(57, 135, 229, .18);
+  }
+}
+:root[data-theme="dark"] .viz-root {
+  color-scheme: dark;
+  --page: #111110; --surface-1: #1a1a19; --border: #33332f;
+  --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8a8984; --grid: #2a2a27;
+  --evon: #3987e5; --exact: #d95926; --qstar: #d55181; --ivon: #199e70; --laplace: #ffffff; --probe: #9085e9; --pin: #8a8984;
+  --cls0: #e66767; --cls1: #3987e5;
+  --land-lo: 26; --land-hi: 95;
+  --seq-0: #383835; --seq-1: #104281; --seq-2: #1c5cab; --seq-3: #2a78d6; --seq-4: #6da7ec; --seq-5: #cde2fb;
+  --div-neg: 230, 103, 103; --div-pos: 57, 135, 229;
+  --land-lo-rgb: 32, 35, 42; --land-hi-rgb: 92, 104, 126;
+  --glow-1: rgba(57, 135, 229, .16); --glow-2: rgba(217, 89, 38, .10);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -16px rgba(0, 0, 0, .7);
+  --shadow-hover: 0 1px 2px rgba(0, 0, 0, .5), 0 18px 44px -16px rgba(0, 0, 0, .8);
+  --seg-bg: #262624; --chip-on: rgba(57, 135, 229, .18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body.viz-root {
+  background: var(--page); color: var(--text-primary);
+  font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+header { padding: 14px 20px 6px; display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; }
+header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+header .sub { color: var(--text-secondary); }
+header .spacer { flex: 1; }
+.presets { display: flex; gap: 6px; align-items: center; color: var(--text-secondary); flex-wrap: wrap; }
+button, select {
+  font: inherit; color: var(--text-primary); background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px; cursor: pointer;
+}
+button:hover, select:hover { border-color: var(--text-muted); }
+button.on { background: var(--evon); border-color: var(--evon); color: #fff; }
+.wrap { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 14px; padding: 8px 20px 20px; }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+.card h2 { font-size: 13px; margin: 0 0 2px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.card .hint { color: var(--text-muted); font-size: 12px; margin: 0 0 8px; }
+.side { display: flex; flex-direction: column; gap: 14px; }
+.ctrl { margin: 12px 0 0; }
+.ctrl .lab { display: flex; justify-content: space-between; color: var(--text-secondary); }
+.ctrl .lab b { color: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ctrl input[type=range] { width: 100%; margin: 4px 0 0; accent-color: var(--evon); }
+.qi {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--text-muted);
+  color: var(--text-muted); font-size: 10px; font-weight: 600; line-height: 1; cursor: help;
+  vertical-align: middle; margin-left: 4px; user-select: none;
+}
+.qi:hover, .qi:focus-visible { color: var(--text-primary); border-color: var(--text-primary); outline: none; }
+.ctrl .lab span:first-child { display: inline-flex; align-items: center; }
+.ticks { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; padding: 0 2px; }
+.seg { display: flex; gap: 4px; margin-top: 4px; }
+.seg button { flex: 1; }
+.metrics { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-variant-numeric: tabular-nums; margin: 0; }
+.metrics dt { color: var(--text-secondary); }
+.metrics dd { margin: 0; text-align: right; }
+.badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; border: 1px solid var(--border); color: var(--text-secondary); font-weight: 400; }
+.badge.bad { color: var(--text-primary); border-color: var(--cls0); }
+.main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.plots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+canvas { display: block; width: 100%; touch-action: pan-y pinch-zoom; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--text-secondary); font-size: 12px; margin: 6px 0 0; align-items: center; }
+.legend label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+.legend input { margin: 0; accent-color: var(--evon); }
+.sw { display: inline-block; width: 16px; height: 0; border-top: 2px solid; vertical-align: middle; }
+.sw.dash { border-top-style: dashed; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.timebar { display: flex; align-items: center; gap: 10px; }
+.timebar input { flex: 1; accent-color: var(--evon); }
+.timebar .val { min-width: 120px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.overview { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; }
+.axsel { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; color: var(--text-secondary); margin-bottom: 6px; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 12px; }
+th { text-align: right; color: var(--text-secondary); font-weight: 500; padding: 3px 5px; border-bottom: 1px solid var(--border); }
+td { text-align: right; padding: 3px 5px; border-bottom: 1px solid var(--grid); }
+#best tr { cursor: pointer; }
+#best tr:hover { background: var(--grid); }
+tr.cur td { font-weight: 600; }
+.cmp { margin-top: 10px; }
+.cmp th:first-child, .cmp td:first-child { text-align: left; color: var(--text-secondary); }
+.refs { margin-top: 10px; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-variant-numeric: tabular-nums; font-size: 12px; }
+.refs dt { color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.refs dd { margin: 0; text-align: right; }
+.try { margin: 6px 0 0; padding-left: 18px; color: var(--text-secondary); font-size: 12px; }
+.try li { margin: 0 0 6px; }
+.try a { color: var(--evon); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.section-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.section-head .hint { margin: 0; }
+#tip {
+  position: fixed; pointer-events: none; z-index: 10; display: none;
+  background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 8px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+#tip .m { color: var(--text-secondary); }
+#tip.wrap { white-space: normal; max-width: 320px; line-height: 1.45; }
+details.try-box summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; align-items: center; gap: 6px; }
+details.try-box summary::-webkit-details-marker { display: none; }
+details.try-box summary::before { content: '▸'; color: var(--text-muted); }
+details.try-box[open] summary::before { content: '▾'; }
+.kbd { font-size: 11px; color: var(--text-muted); }
+@media (max-width: 1250px) { .plots, .overview { grid-template-columns: 1fr; } }
+@media (max-width: 860px) { .wrap { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  header { padding: 10px 12px 4px; }
+  header h1 { font-size: 16px; }
+  header .sub { font-size: 12px; }
+  .wrap { padding: 6px 8px 16px; gap: 10px; }
+  .side, .main, .plots, .overview { gap: 10px; }
+  .card { padding: 10px; }
+  .timebar { flex-wrap: wrap; gap: 6px 10px; }
+  .timebar input { order: 3; flex-basis: 100%; }
+  .timebar .val { min-width: 0; margin-left: auto; }
+  .legend { gap: 4px 10px; }
+}
+
+/* ---------------------------------------------------------------- polish */
+/* one spacing scale (4/8/12/16/24/32) and flat surfaces: hierarchy comes from type and grouping, not decoration */
+.viz-root { --gap: 16px; --pad: 16px; --bar-h: 56px; }
+body.viz-root {
+  background: var(--page);
+  font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+/* app bar: brand · page tabs · actions, sticky so the page context never scrolls away */
+header {
+  position: sticky; top: 0; z-index: 6; min-height: var(--bar-h); padding: 8px 24px; gap: 8px 20px;
+  background: color-mix(in srgb, var(--page) 86%, transparent); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border); flex-wrap: nowrap;
+}
+header .brand { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+header h1 { font-size: 15px; font-weight: 650; letter-spacing: -.01em; white-space: nowrap; }
+header .sub { font-size: 12px; color: var(--text-muted); display: inline-flex; align-items: center; white-space: nowrap; }
+header .actions { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.presets { flex-wrap: nowrap; font-size: 12px; white-space: nowrap; }
+#theme { padding: 4px 10px; white-space: nowrap; }
+.wrap { grid-template-columns: 320px minmax(0, 1fr); gap: var(--gap); padding: 20px 24px 40px; max-width: 1840px; margin: 0 auto; }
+.side, .main, .plots, .overview, .two, .row2 { gap: var(--gap); }
+/* the controls stay in reach while the plots scroll */
+.side { position: sticky; top: calc(var(--bar-h) + 20px); align-self: start; max-height: calc(100vh - var(--bar-h) - 40px); overflow-y: auto; scrollbar-width: thin; padding-bottom: 2px; }
+.card { border-radius: 12px; padding: var(--pad) 18px; box-shadow: 0 1px 2px rgba(20, 20, 30, .04); }
+.card h2 { font-size: 14px; font-weight: 600; letter-spacing: -.005em; margin: 0 0 8px; }
+.side .card h2 { margin-bottom: 4px; }
+/* section headings group the cards into "this run" vs "the whole sweep" */
+.sect { display: flex; align-items: baseline; gap: 12px; margin: 12px 0 -4px; padding: 0 2px; }
+.sect:first-child { margin-top: 0; }
+.sect h3 { margin: 0; font-size: 11.5px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; color: var(--text-secondary); white-space: nowrap; }
+.sect p { margin: 0; color: var(--text-muted); font-size: 12px; }
+.sect::after { content: ''; flex: 1; height: 1px; background: var(--border); align-self: center; }
+button, select { border-radius: 8px; transition: background .15s, border-color .15s, color .15s, box-shadow .15s; }
+.presets button { border-radius: 999px; padding: 3px 11px; }
+.presets button:hover { background: var(--chip-on); border-color: var(--evon); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--evon); outline-offset: 2px; }
+
+[hidden] { display: none !important; }  /* class display rules must not override the hidden attribute */
+
+/* page tabs */
+.tabs { display: inline-flex; gap: 0; padding: 3px; background: var(--seg-bg); border-radius: 10px; }
+.tabs a { padding: 4px 12px; border-radius: 7px; color: var(--text-secondary); text-decoration: none; font-weight: 500; }
+.tabs a:hover { color: var(--text-primary); }
+.tabs a.on { background: var(--surface-1); color: var(--evon); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
+/* segmented controls */
+.seg { gap: 0; padding: 3px; background: var(--seg-bg); border-radius: 10px; }
+.seg button { border: 0; background: transparent; border-radius: 7px; padding: 4px 9px; color: var(--text-secondary); }
+.seg button:hover { color: var(--text-primary); background: transparent; }
+.seg button.on { background: var(--surface-1); color: var(--evon); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 0 0 1px color-mix(in srgb, var(--evon) 25%, transparent); }
+
+/* sliders: track filled up to the thumb (JS sets --fill) */
+input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; height: 22px; cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track {
+  height: 5px; border-radius: 99px;
+  background: linear-gradient(90deg, var(--evon) var(--fill, 50%), var(--seg-bg) var(--fill, 50%));
+}
+input[type=range]::-moz-range-track { height: 5px; border-radius: 99px; background: var(--seg-bg); }
+input[type=range]::-moz-range-progress { height: 5px; border-radius: 99px; background: var(--evon); }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 17px; height: 17px; margin-top: -6px; border-radius: 50%;
+  background: var(--surface-1); border: 2px solid var(--evon); box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  transition: transform .12s ease;
+}
+input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--surface-1); border: 2px solid var(--evon); box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+input[type=range]:hover::-webkit-slider-thumb, input[type=range]:active::-webkit-slider-thumb { transform: scale(1.15); }
+
+/* legend toggles as chips */
+.legend label {
+  position: relative; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border);
+  transition: background .15s, border-color .15s, color .15s;
+}
+.legend label:hover { border-color: var(--text-muted); }
+.legend label input { position: absolute; opacity: 0; pointer-events: none; }
+.legend label:has(input:checked) { background: var(--chip-on); border-color: color-mix(in srgb, var(--evon) 45%, transparent); color: var(--text-primary); }
+.legend label:not(:has(input:checked)) .sw, .legend label:not(:has(input:checked)) .dot { opacity: .35; }
+.legend label:has(input:focus-visible) { outline: 2px solid var(--evon); outline-offset: 2px; }
+
+/* play button + time readout */
+#play { border-radius: 999px; background: var(--evon); border-color: var(--evon); color: #fff; padding: 4px 14px; font-weight: 600; box-shadow: 0 4px 14px -6px var(--evon); }
+#play:hover { filter: brightness(1.08); }
+
+/* headline stat */
+.hero { display: flex; align-items: baseline; gap: 8px; margin: 2px 0 2px; }
+.hero .num { font-size: 34px; font-weight: 650; letter-spacing: -.02em; line-height: 1.1; }
+.hero .unit { color: var(--text-secondary); font-size: 12px; }
+.meter { position: relative; height: 8px; border-radius: 99px; margin: 8px 0 3px; background: linear-gradient(90deg, var(--seq-1), var(--seq-3) 55%, var(--seq-5)); }
+.meter .mk { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--surface-1); border: 3px solid var(--text-primary); transform: translate(-50%, -50%); transition: left .35s cubic-bezier(.2,.8,.2,1); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.meter .mk.pin { width: 10px; height: 10px; border: 2px dashed var(--pin); background: transparent; box-shadow: none; }
+.meter-lab { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+
+/* loading shimmer on the cards whose plots wait for a slice */
+.card.loading { position: relative; overflow: hidden; }
+.card.loading::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--surface-1) 70%, transparent) 50%, transparent 70%);
+  animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+#tip { border-radius: 10px; box-shadow: 0 10px 30px -10px rgba(0,0,0,.35); backdrop-filter: blur(6px); background: color-mix(in srgb, var(--surface-1) 92%, transparent); }
+@media (max-width: 1100px) { header { flex-wrap: wrap; } header .actions { flex-wrap: wrap; } .presets { flex-wrap: wrap; } }
+@media (max-width: 860px) { .side { position: static; max-height: none; overflow: visible; } }
+@media (max-width: 640px) { .viz-root { --gap: 10px; } header { position: static; padding: 8px 12px; } .wrap { padding: 10px 8px 24px; } .card { padding: 12px; } .sect p { display: none; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body class="viz-root">
+<header>
+  <div class="brand">
+    <h1>EVON hyperparameter explorer</h1>
+    <span class="sub">notebook 1 · 8000 runs<span class="qi" tabindex="0" data-tip="Each run trains for 10k steps.&lt;br&gt;&lt;br&gt;Fixed setup: N = 50 points, prior precision δ = 0.01 (weight_decay = δ/N), init w = (3, 2), cosine LR to 0, mc_samples = 1, precondition_frequency = 1.&lt;br&gt;&lt;br&gt;Each run’s sampling noise depends only on its base config, so runs that differ only in phasing or β₃ see the same random draws.&lt;br&gt;&lt;br&gt;The target is the posterior ∝ exp(−(ess/N)·loss), so ess = N is the Bayesian posterior and ess = 10N a colder one; all references follow that choice.&lt;br&gt;&lt;br&gt;KL(q ‖ exact) is estimated with 16k common-random-number MC samples.">?</span></span>
+  </div>
+  <nav class="tabs"><a class="on" href="index.html">2D logistic regression</a><a href="nn.html">neural network</a></nav>
+  <span class="spacer"></span>
+  <div class="actions">
+  <span class="presets">jump to
+    <button data-preset="nb">notebook 1 EVON</button>
+    <button data-preset="best1">best at ess = N</button>
+    <button data-preset="best10">best at ess = 10N</button>
+    <button data-preset="worst">worst</button>
+  </span>
+    <button id="theme" title="Toggle light/dark">◐ theme</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="side">
+    <div class="card">
+      <h2>Hyperparameters<span class="qi" tabindex="0" data-tip="Every combination on this grid was trained, so each setting loads a real run. Arrow keys work on focused sliders.">?</span></h2>
+      <div id="controls"></div>
+    </div>
+    <div class="card">
+      <h2>This run <span id="divbadge"></span><span style="flex:1"></span><button id="pinbtn" title="Freeze this run as a gray ghost to compare against">📌 pin</button></h2>
+      <p class="hint" id="idxline"></p>
+      <div class="hero"><span class="num" id="heroNum">—</span><span class="unit">KL to the exact posterior<span class="qi" id="heroTip" tabindex="0" data-tip="">?</span></span></div>
+      <div class="meter" id="meter"><span class="mk pin" id="mkpin" hidden></span><span class="mk" id="mk"></span></div>
+      <div class="meter-lab"><span id="meterLo"></span><span id="meterRank"></span><span id="meterHi"></span></div>
+      <dl class="metrics" id="metrics"></dl>
+      <table class="cmp"><thead id="cmphead"></thead><tbody id="cmp"></tbody></table>
+      <dl class="refs" id="refs"></dl>
+    </div>
+    <details class="card try-box">
+      <summary>What to try</summary>
+      <ul class="try" id="try"></ul>
+    </details>
+  </div>
+
+  <div class="main">
+    <div class="sect"><h3>Selected run</h3><p>the configuration on the left, at the chosen training step</p></div>
+    <div class="card">
+      <div class="timebar">
+        <button id="play">▶ play</button>
+        <span style="color:var(--text-secondary)">training step</span>
+        <input type="range" id="tstep" min="0" max="1" value="1">
+        <span class="val" id="tval"></span>
+      </div>
+    </div>
+
+    <div class="plots">
+      <div class="card">
+        <h2>Posterior in the loss landscape (weight space)<span class="qi" tabindex="0" data-tip="Background: loss + prior, lighter = lower.&lt;br&gt;Hover a point to see its classifier on the right.&lt;br&gt;Scroll to zoom, drag to pan, double-click to reset.">?</span></h2>
+        <canvas id="wcv" height="460"></canvas>
+        <div class="legend">
+          <label><input type="checkbox" data-layer="evon"><span class="sw" style="border-color:var(--evon)"></span>EVON 1σ / 2σ</label>
+          <label><input type="checkbox" data-layer="samples"><span class="dot" style="background:var(--evon);opacity:.5"></span>samples</label>
+          <label><input type="checkbox" data-layer="trail"><span class="sw" style="border-color:var(--evon);opacity:.35"></span>covariance trail</label>
+          <label><input type="checkbox" data-layer="traj"><span class="sw" style="border-color:var(--evon);opacity:.55;border-top-width:1px"></span>mean path</label>
+          <label><input type="checkbox" data-layer="exact"><span class="sw" style="border-color:var(--exact)"></span>exact posterior<span class="qi" tabindex="0" data-tip="The exact posterior is not Gaussian, so instead of ellipses it is drawn as the contours where its log density drops by 1/2 and 2 from the mode, which is where a Gaussian's 1σ and 2σ ellipses lie.">?</span></label>
+          <label><input type="checkbox" data-layer="qstar"><span class="sw" style="border-color:var(--qstar)"></span>best possible Gaussian<span class="qi" tabindex="0" data-tip="The Gaussian with the smallest KL(q ‖ exact). No Gaussian method, EVON included, can get closer to the exact posterior; its KL is the minimum shown under “This run”.">?</span></label>
+          <label><input type="checkbox" data-layer="laplace"><span class="sw dash" style="border-color:var(--laplace)"></span>Laplace at MAP</label>
+          <label><input type="checkbox" data-layer="ivon"><span class="sw" style="border-color:var(--ivon)"></span>IVON (nb 1)</label>
+          <span id="pinleg" style="display:none"><span class="sw dash" style="border-color:var(--pin)"></span> pinned</span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Sampled classifiers (feature space)<span class="qi" tabindex="0" data-tip="Thin dashed lines: decision boundaries of posterior samples. Thick line: the mean.&lt;br&gt;Background: Monte Carlo predictive p(y=1|x).&lt;br&gt;Scroll / drag / double-click as on the left.">?</span></h2>
+        <canvas id="xcv" height="460"></canvas>
+        <div class="legend">
+          <label><input type="checkbox" data-layer="pred">predictive shading</label>
+          <label><input type="checkbox" data-layer="xexact">exact-posterior samples instead</label>
+          <button id="wide" title="Toggle between notebook 1's view and a 4× wider one">wide view</button>
+          <span><span class="dot" style="background:var(--cls0);border-radius:1px"></span> class 0</span>
+          <span><span class="dot" style="background:var(--cls1)"></span> class 1</span>
+          <label>samples <select id="nsamp"><option>20</option><option selected>50</option><option>100</option><option>200</option></select></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Training curves<span class="qi" tabindex="0" data-tip="This run (blue) against the exact posterior (orange), the best possible Gaussian (pink), IVON (green) and the pinned run (gray).&lt;br&gt;Log step axis; click or drag to scrub.">?</span></h2>
+      <canvas id="ccv" height="190"></canvas>
+    </div>
+
+    <div class="sect"><h3>Whole sweep</h3><p>all 8000 runs, compared on one metric</p></div>
+    <div class="card">
+      <h2>Which hyperparameters matter?<span class="qi" tabindex="0" data-tip="Gray dots: every run at the current ess (all of them in the ess panel); bars: medians.&lt;br&gt;The blue line goes through this run and changes only that panel's hyperparameter.&lt;br&gt;Log scale, lower is better. Click a dot to load it.">?</span></h2>
+      <div class="axsel" style="margin-top:6px">
+        <span>metric</span><select class="metricsel">
+          <option value="gap">KL above the Gaussian minimum</option>
+          <option value="kl">KL(q ‖ exact posterior)</option>
+          <option value="klg">KL(q ‖ moment-matched Gaussian)</option>
+          <option value="loss">loss at the mean</option>
+        </select>
+      </div>
+      <canvas id="scv" height="230"></canvas>
+    </div>
+
+    <div class="overview">
+      <div class="card">
+        <h2>Landscape of all 8000 runs<span class="qi" tabindex="0" data-tip="Two hyperparameters against each other; the others are held at their current values. Click a cell to jump to it.">?</span></h2>
+        <div class="axsel">
+          <span>rows</span><select id="ay"></select>
+          <span>cols</span><select id="ax"></select>
+          <span>metric</span><select class="metricsel">
+            <option value="gap">KL above the Gaussian minimum</option>
+            <option value="kl">KL(q ‖ exact posterior)</option>
+            <option value="klg">KL(q ‖ moment-matched Gaussian)</option>
+            <option value="loss">loss at the mean</option>
+          </select>
+          <span>color</span><select id="hscale"><option value="slice">stretch to this slice</option><option value="all">whole sweep</option></select>
+        </div>
+        <canvas id="hcv" height="300"></canvas>
+        <div class="legend" id="hleg"></div>
+      </div>
+      <div class="card">
+        <h2>Best runs<span class="qi" tabindex="0" data-tip="Ranked by the selected metric, within the current ess and whitening setting. Click a row to load it.">?</span></h2>
+        <table><thead><tr><th>#</th><th>lr</th><th>h₀</th><th>β₁</th><th>β₂</th><th>β₃</th><th title="phasing">ph</th><th id="bestcol">gap</th></tr></thead><tbody id="best"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="tip"></div>
+
+<script>
+const D = /*__DATA__*/null;
+const KEYS = D.keys;
+const G = D.grid;
+const LABEL = {whiten_prec_grad: 'whiten_prec_grad', lr: 'lr', hess_init: 'hess_init (h₀)', beta2: 'β₂ (Hessian EMA, also Shampoo)', beta1: 'β₁ (momentum)', ess_mult: 'ess', phasing: 'phasing', beta3: 'β₃ (Shampoo Kronecker-factor EMA)'};
+const SHORT = {whiten_prec_grad: 'whiten', lr: 'lr', hess_init: 'h₀', beta2: 'β₂', beta1: 'β₁', ess_mult: 'ess', phasing: 'phasing', beta3: 'β₃'};
+const WHY = {
+  whiten_prec_grad: 'Newton–Schulz whitening of the update. On: each step has unit norm, so lr is a step length in weight units. Off: a Newton-like step m / (h + δ/N) scaled by lr.',
+  lr: 'Step size, decayed to 0 by a cosine schedule over the 10k steps; the final mean is where the small late steps settle.',
+  hess_init: 'Starting curvature h in the Shampoo eigenbasis. Posterior variance is 1 / (ess·(h + δ/N)), so a small h₀ starts wide.',
+  beta2: 'EMA of the Price Hessian estimate (and of the Shampoo statistics when β₃ is tied). Memory ≈ 1/(1−β₂) steps: at 0.99999 that is 100k > 10k steps, so h barely leaves h₀.',
+  beta1: 'Momentum on the eigenspace gradient; it also smooths the sampled-gradient noise that drives the mean.',
+  ess_mult: 'Effective sample size. ess = N targets the Bayesian posterior; 10N tempers it to a 10× sharper one. References switch with it.',
+  phasing: 'Alternate clean and noisy steps. Odd steps use the mean (no noise) and skip the Hessian update; even steps sample and update the Hessian. With precondition_frequency = 1 the eigenbasis still updates every step, so phasing mainly halves the number of Hessian updates (doubling β₂’s memory in steps). On clean steps sampled_params() adds no noise even at test time; the posterior shown is the Gaussian 1 / (ess·(h + δ/N)).',
+  beta3: 'shampoo_beta: EMA rate of the Kronecker factors (gradient outer products) whose eigenvectors are the basis EVON works in. Tied = β₂, as in the first sweep. Smaller values let the basis track recent gradients and rotate faster; larger ones keep a long-run average basis.',
+};
+const X = D.setup.X, Y = D.setup.y, N = D.setup.N, DELTA = D.setup.delta, STEPS = D.setup.steps;
+const NC = D.steps.length;
+// per-run summary for the whole sweep; trajectories (t, klt) arrive per slice
+D.runs = D.summary.d.map((d, i) => ({d, kl: D.summary.kl[i], gap: D.summary.gap[i], klg: D.summary.klg[i], loss: D.summary.loss[i], corr: D.summary.corr[i]}));
+const NSLICE = D.nslices;
+window.__shard = (k, sh) => sh.t.forEach((t, b) => { const r = D.runs[b * NSLICE + k]; r.t = t; r.klt = sh.klt[b]; });
+const shardLoads = {};
+const loadShard = k => shardLoads[k] ||= new Promise((res, rej) => {
+  const el = document.createElement('script'); el.src = `data/slice${k}.js`;
+  el.onload = res; el.onerror = () => { delete shardLoads[k]; rej(new Error(`data/slice${k}.js`)); };
+  document.head.appendChild(el);
+});
+const METRIC_NAME = {gap: 'KL above the Gaussian minimum', kl: 'KL(q ‖ exact)', klg: 'KL(q ‖ moment-matched Gaussian)', loss: 'loss at the mean'};
+
+const fmt = (k, v) => typeof v === 'boolean' ? (v ? 'on' : 'off') : k === 'ess_mult' ? `${v}N` : k === 'beta3' && v === -1 ? 'tied' : (v < 0.01 ? v.toExponential(0) : String(v));
+const fnum = (v, d = 3) => v == null || !isFinite(v) ? '—' : Math.abs(v) >= 1e4 || (Math.abs(v) < 1e-3 && v !== 0) ? v.toExponential(2) : v.toFixed(Math.abs(v) >= 100 ? Math.min(d, 1) : d);
+
+// ------------------------------------------------------------------ state
+const state = {
+  sel: {}, t: NC - 1, pin: null, probe: null, metric: 'gap', wide: false, nsamp: 50,
+  layers: {evon: 1, samples: 1, trail: 1, traj: 0, exact: 1, qstar: 0, laplace: 1, ivon: 0, pred: 1, xexact: 0},
+};
+const NB = {whiten_prec_grad: true, lr: 1.0, hess_init: 3e-3, beta2: 0.9995, beta1: 0.7, ess_mult: 1, phasing: false, beta3: -1};
+const setSel = cfg => { for (const k of KEYS) { const i = G[k].indexOf(cfg[k]); state.sel[k] = i < 0 ? 0 : i; } };
+setSel(NB);
+const loadHash = () => {
+  const h = location.hash.slice(1); if (!h) return;
+  for (const kv of h.split('&')) {
+    const [k, v] = kv.split('=');
+    if (k in state.sel && +v >= 0 && +v < G[k].length) state.sel[k] = +v;
+    if (k === 'pin' && v !== '' && D.runs[+v]) state.pin = +v;
+  }
+};
+loadHash();
+
+const idxOf = sel => KEYS.reduce((a, k) => a * G[k].length + sel[k], 0);
+const selOf = idx => { const s = {}; for (let j = KEYS.length - 1; j >= 0; j--) { const k = KEYS[j], n = G[k].length; s[k] = idx % n; idx = Math.floor(idx / n); } return s; };
+const val = k => G[k][state.sel[k]];
+const cur = () => idxOf(state.sel);
+const run = () => D.runs[cur()];
+const missing = () => [cur(), state.pin].filter(i => i != null && !D.runs[i].t);
+let loadError = null;
+function drawLoading() {
+  for (const id of ['wcv', 'xcv', 'ccv']) {
+    const {ctx, w, h} = setupCanvas(document.getElementById(id));
+    ctx.fillStyle = css('--text-muted'); ctx.font = '13px ui-sans-serif, system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(loadError ? `could not load ${loadError}` : 'loading this slice of the sweep…', w / 2, h / 2);
+  }
+}
+const essMult = () => val('ess_mult');
+const essOf = idx => G.ess_mult[selOf(idx).ess_mult];
+
+function postAt(flat, t) {
+  const n = flat.length / 5, i = Math.min(t, n - 1), o = i * 5, a = flat.slice(o, o + 5);
+  return {mu: [a[0], a[1]], S: [[a[2], a[3]], [a[3], a[4]]], i, ok: a.every(Number.isFinite) && a[2] > 0 && a[4] > 0};
+}
+const ivonAt = t => postAt(D.ivon[String(essMult())].t, t);
+
+// ------------------------------------------------------------------ math
+function loss(w1, w2) {
+  let s = 0;
+  for (let i = 0; i < N; i++) {
+    const z = w1 * X[i][0] + w2 * X[i][1];
+    s += (z > 0 ? z + Math.log1p(Math.exp(-z)) : Math.log1p(Math.exp(z))) - Y[i] * z;
+  }
+  return s + 0.5 * DELTA * (w1 * w1 + w2 * w2);
+}
+const LMIN = loss(...D.laplace.mu);
+function chol(S) {
+  const a = Math.sqrt(Math.max(S[0][0], 0)); const b = a > 0 ? S[0][1] / a : 0;
+  return [[a, 0], [b, Math.sqrt(Math.max(S[1][1] - b * b, 0))]];
+}
+function eig2(S) {
+  const a = S[0][0], b = S[0][1], c = S[1][1];
+  const tr = a + c, det = a * c - b * b, disc = Math.sqrt(Math.max(tr * tr / 4 - det, 0));
+  const l1 = tr / 2 + disc, l2 = tr / 2 - disc;
+  const ang = Math.abs(b) < 1e-14 ? (a >= c ? 0 : Math.PI / 2) : Math.atan2(l1 - a, b);
+  return {l1, l2, ang};
+}
+// fixed standard-normal draws -> common random numbers across configs, so
+// samples move smoothly as hyperparameters change
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rng = mulberry(7);
+const Z = Array.from({length: 400}, () => { const u = Math.max(rng(), 1e-12), v = rng(); const r = Math.sqrt(-2 * Math.log(u)); return [r * Math.cos(2 * Math.PI * v), r * Math.sin(2 * Math.PI * v)]; });
+const samplesOf = (mu, S, n) => { const L = chol(S); return Z.slice(0, n).map(([a, b]) => [mu[0] + L[0][0] * a, mu[1] + L[1][0] * a + L[1][1] * b]); };
+
+// exact posterior samples by importance resampling on a grid (cached per ess)
+const exactSamples = {};
+function getExactSamples(m) {
+  if (exactSamples[m]) return exactSamples[m];
+  const pts = [], wts = []; let tot = 0;
+  const lo = -10, hi = 50, n = 240, h = (hi - lo) / n;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const w1 = lo + (i + .5) * h, w2 = lo + (j + .5) * h;
+    const p = Math.exp(-m * (loss(w1, w2) - LMIN)); if (p < 1e-12) continue;
+    pts.push([w1, w2]); tot += p; wts.push(tot);
+  }
+  const r2 = mulberry(11), out = [];
+  for (let k = 0; k < 400; k++) {
+    const u = r2() * tot; let a = 0, b = wts.length - 1;
+    while (a < b) { const c = (a + b) >> 1; if (wts[c] < u) a = c + 1; else b = c; }
+    out.push([pts[a][0] + (r2() - .5) * h, pts[a][1] + (r2() - .5) * h]);
+  }
+  return exactSamples[m] = out;
+}
+
+// ------------------------------------------------------------------ canvas helpers
+const css = n => getComputedStyle(document.body).getPropertyValue(n).trim();
+const FONT = '11px ui-sans-serif, system-ui, sans-serif';
+// CSS height per canvas as a function of its CSS width. Never read it back from
+// the height attribute: that holds the DPR-scaled pixel size.
+const narrow = w => w < 640;
+const HEIGHT = {
+  wcv: w => Math.round(Math.max(260, Math.min(460, w * 0.8))),
+  xcv: w => Math.round(Math.max(260, Math.min(460, w * 0.95))),
+  ccv: w => Math.ceil(5 / curveCols(w)) * (narrow(w) ? 150 : 190),
+  scv: w => stripRows(w).length * (narrow(w) ? 190 : 230),
+  hcv: w => narrow(w) ? 240 : 300,
+};
+function setupCanvas(cv) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = HEIGHT[cv.id](w);
+  cv.style.height = h + 'px';
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+  return {ctx, w, h};
+}
+function niceTicks(lo, hi, n = 6) {
+  const span = hi - lo, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 5, 10].map(s => s * mag).find(s => s >= step0);
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+function axes(ctx, P, view, xl, yl) {
+  ctx.save();
+  ctx.font = FONT;
+  ctx.fillStyle = css('--text-muted'); ctx.strokeStyle = css('--border'); ctx.lineWidth = 1;
+  ctx.strokeRect(P.x0 + .5, P.y0 + .5, P.w, P.h);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (const t of niceTicks(view.x0, view.x1)) ctx.fillText(t, P.sx(t), P.y0 + P.h + 4);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (const t of niceTicks(view.y0, view.y1)) ctx.fillText(t, P.x0 - 5, P.sy(t));
+  ctx.fillStyle = css('--text-secondary'); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText(xl, P.x0 + P.w / 2, P.y0 + P.h + 32);
+  ctx.save(); ctx.translate(P.x0 - 32, P.y0 + P.h / 2); ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'bottom'; ctx.fillText(yl, 0, 0); ctx.restore();
+  ctx.restore();
+}
+function frame(w, h, view) {
+  // equal aspect: fit the view's aspect into the available box
+  const m = {l: 46, r: 10, t: 8, b: 38};
+  const aw = w - m.l - m.r, ah = h - m.t - m.b;
+  const vx = view.x1 - view.x0, vy = view.y1 - view.y0;
+  const sc = Math.min(aw / vx, ah / vy);
+  const pw = vx * sc, ph = vy * sc;
+  const x0 = m.l + (aw - pw) / 2, y0 = m.t + (ah - ph) / 2;
+  return {x0, y0, w: pw, h: ph, sc, sx: x => x0 + (x - view.x0) * sc, sy: y => y0 + ph - (y - view.y0) * sc,
+          ix: px => view.x0 + (px - x0) / sc, iy: py => view.y0 + (y0 + ph - py) / sc};
+}
+function ellipse(ctx, P, mu, S, k, fillAlpha) {
+  const e = eig2(S);
+  ctx.beginPath();
+  for (let i = 0; i <= 96; i++) {
+    const th = 2 * Math.PI * i / 96, a = k * Math.sqrt(Math.max(e.l1, 0)) * Math.cos(th), b = k * Math.sqrt(Math.max(e.l2, 0)) * Math.sin(th);
+    const x = mu[0] + a * Math.cos(e.ang) - b * Math.sin(e.ang), y = mu[1] + a * Math.sin(e.ang) + b * Math.cos(e.ang);
+    i ? ctx.lineTo(P.sx(x), P.sy(y)) : ctx.moveTo(P.sx(x), P.sy(y));
+  }
+  if (fillAlpha) { const a = ctx.globalAlpha; ctx.globalAlpha = fillAlpha; ctx.fillStyle = ctx.strokeStyle; ctx.fill(); ctx.globalAlpha = a; }
+  ctx.stroke();
+}
+const dotAt = (ctx, x, y, r, fill, ring) => { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = fill; ctx.fill(); if (ring) { ctx.strokeStyle = ring; ctx.lineWidth = 2; ctx.stroke(); } };
+// marching squares on a regular grid: f[j*nx+i] at (xs[i], ys[j])
+const MS = {1: [[3, 0]], 2: [[0, 1]], 3: [[3, 1]], 4: [[1, 2]], 5: [[3, 0], [1, 2]], 6: [[0, 2]], 7: [[3, 2]], 8: [[2, 3]], 9: [[0, 2]], 10: [[0, 1], [2, 3]], 11: [[1, 2]], 12: [[1, 3]], 13: [[0, 1]], 14: [[0, 3]]};
+function contour(ctx, P, f, nx, ny, xs, ys, t) {
+  ctx.beginPath();
+  const lerp = (a, b, fa, fb) => a + (b - a) * (t - fa) / (fb - fa);
+  for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    const a = f[j * nx + i], b = f[j * nx + i + 1], c = f[(j + 1) * nx + i + 1], d = f[(j + 1) * nx + i];
+    const code = (a > t) | ((b > t) << 1) | ((c > t) << 2) | ((d > t) << 3);
+    if (code === 0 || code === 15) continue;
+    const x0 = xs[i], x1 = xs[i + 1], y0 = ys[j], y1 = ys[j + 1];
+    const E = [[lerp(x0, x1, a, b), y0], [x1, lerp(y0, y1, b, c)], [lerp(x0, x1, d, c), y1], [x0, lerp(y0, y1, a, d)]];
+    for (const [p, q] of MS[code]) { ctx.moveTo(P.sx(E[p][0]), P.sy(E[p][1])); ctx.lineTo(P.sx(E[q][0]), P.sy(E[q][1])); }
+  }
+  ctx.stroke();
+}
+const tip = document.getElementById('tip');
+const showTip = (e, html) => { tip.classList.remove('wrap'); tip.innerHTML = html; tip.style.display = 'block'; tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 12) + 'px'; };
+const hideTip = () => { tip.style.display = 'none'; tip.classList.remove('wrap'); };
+const qi = t => `<span class="qi" tabindex="0" data-tip="${t.replace(/"/g, '&quot;')}">?</span>`;
+function showQi(el) {
+  tip.innerHTML = el.dataset.tip; tip.classList.add('wrap'); tip.style.display = 'block';
+  const r = el.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+  const left = Math.max(8, Math.min(r.left - 12, innerWidth - tw - 8));
+  const top = r.bottom + 6 + th > innerHeight ? r.top - th - 6 : r.bottom + 6;
+  tip.style.left = left + 'px'; tip.style.top = top + 'px';
+}
+document.addEventListener('mouseover', e => { const el = e.target.closest('.qi'); if (el) showQi(el); });
+document.addEventListener('mouseout', e => { if (e.target.closest('.qi')) hideTip(); });
+document.addEventListener('focusin', e => { const el = e.target.closest('.qi'); if (el) showQi(el); });
+document.addEventListener('focusout', e => { if (e.target.closest('.qi')) hideTip(); });
+// a ? inside a <label> should not toggle its checkbox
+document.addEventListener('click', e => { if (e.target.closest('.qi')) e.preventDefault(); });
+const themeKey = () => css('--surface-1');
+
+// ------------------------------------------------------------------ weight space
+const WVIEW0 = {x0: -4, x1: 30, y0: -4, y1: 20};
+let wview = {...WVIEW0};
+const landCache = {key: null};
+function landscape(P, view) {
+  const key = [view.x0, view.x1, view.y0, view.y1, P.w, P.h].join();
+  if (landCache.key === key) return landCache;
+  const nx = Math.ceil(P.w / 2), ny = Math.ceil(P.h / 2);
+  const xs = Float64Array.from({length: nx}, (_, i) => view.x0 + (i + .5) / nx * (view.x1 - view.x0));
+  const ys = Float64Array.from({length: ny}, (_, j) => view.y0 + (j + .5) / ny * (view.y1 - view.y0));
+  const f = new Float64Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) f[j * nx + i] = loss(xs[i], ys[j]) - LMIN;
+  Object.assign(landCache, {key, nx, ny, xs, ys, f, img: null});
+  return landCache;
+}
+function landImage(L) {
+  const theme = themeKey();
+  if (L.img && L.theme === theme) return L.img;
+  const lo = css('--land-lo-rgb').split(',').map(Number), hi = css('--land-hi-rgb').split(',').map(Number);
+  const c = document.createElement('canvas'); c.width = L.nx; c.height = L.ny;
+  const cx = c.getContext('2d'), im = cx.createImageData(L.nx, L.ny);
+  for (let j = 0; j < L.ny; j++) for (let i = 0; i < L.nx; i++) {
+    // smooth shade in log2(1 + loss - min); the faint contour lines on top mark the old band edges
+    const t = Math.pow(Math.min(1, Math.log2(1 + L.f[j * L.nx + i]) / 8.5), 0.85);
+    const o = ((L.ny - 1 - j) * L.nx + i) * 4;
+    for (let ch = 0; ch < 3; ch++) im.data[o + ch] = lo[ch] + (hi[ch] - lo[ch]) * t;
+    im.data[o + 3] = 255;
+  }
+  cx.putImageData(im, 0, 0);
+  L.img = c; L.theme = theme;
+  return c;
+}
+// soft glow of the exact posterior density exp(-m (L - Lmin)), cached per landscape + ess
+const glowCache = {key: null};
+function exactGlow(L, m) {
+  const key = L.key + '|' + m + '|' + themeKey();
+  if (glowCache.key === key) return glowCache.img;
+  const rgb = hex2rgb(css('--exact'));
+  const c = document.createElement('canvas'); c.width = L.nx; c.height = L.ny;
+  const cx = c.getContext('2d'), im = cx.createImageData(L.nx, L.ny);
+  for (let j = 0; j < L.ny; j++) for (let i = 0; i < L.nx; i++) {
+    const a = Math.exp(-0.7 * m * L.f[j * L.nx + i]), o = ((L.ny - 1 - j) * L.nx + i) * 4;
+    im.data[o] = rgb[0]; im.data[o + 1] = rgb[1]; im.data[o + 2] = rgb[2]; im.data[o + 3] = 120 * a;
+  }
+  cx.putImageData(im, 0, 0);
+  return Object.assign(glowCache, {key, img: c}).img;
+}
+
+// ---- animated EVON posterior: on a hyperparameter change the displayed (mu, S)
+// glides from what was on screen to the new run (linear in S stays PSD)
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const tween = {from: null, t0: 0, dur: 450, key: null, shown: null, raf: 0};
+function evonPost() {
+  const tgt = postAt(run().t, state.t);
+  if (!tween.from || !tgt.ok) return tgt;
+  const u = Math.min(1, (performance.now() - tween.t0) / tween.dur);
+  if (u >= 1) { tween.from = null; return tgt; }
+  const e = 1 - Math.pow(1 - u, 3), f = tween.from, L = (a, b) => a + (b - a) * e;
+  return {...tgt, animating: true, mu: [L(f.mu[0], tgt.mu[0]), L(f.mu[1], tgt.mu[1])],
+          S: [[L(f.S[0][0], tgt.S[0][0]), L(f.S[0][1], tgt.S[0][1])], [L(f.S[1][0], tgt.S[1][0]), L(f.S[1][1], tgt.S[1][1])]]};
+}
+function retarget(animate) {
+  const key = cur() + ':' + state.t;
+  if (key === tween.key) return;
+  tween.key = key;
+  if (!animate || reduceMotion.matches || !tween.shown) { tween.from = null; return; }
+  tween.from = tween.shown; tween.t0 = performance.now();
+  cancelAnimationFrame(tween.raf);
+  const tick = () => { drawW(); drawX(); if (tween.from) tween.raf = requestAnimationFrame(tick); else { drawW(); drawX(); } };
+  tween.raf = requestAnimationFrame(tick);
+}
+function drawW() {
+  if (missing().length) return;
+  const cv = document.getElementById('wcv');
+  const {ctx, w, h} = setupCanvas(cv);
+  const P = frame(w, h, wview); cv._P = P;
+  const L = landscape(P, wview);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(landImage(L), P.x0, P.y0, P.w, P.h);
+  ctx.save(); ctx.beginPath(); ctx.rect(P.x0, P.y0, P.w, P.h); ctx.clip();
+  const m = essMult(), r = run(), post = evonPost(), ly = state.layers;
+  if (post.ok) tween.shown = post;
+  if (ly.exact) ctx.drawImage(exactGlow(L, m), P.x0, P.y0, P.w, P.h);
+  const evon = css('--evon'), surf = css('--surface-1');
+
+  ctx.strokeStyle = css('--surface-1'); ctx.lineWidth = .7; ctx.globalAlpha = .45;
+  for (let b = 1; b < 9; b++) contour(ctx, P, L.f, L.nx, L.ny, L.xs, L.ys, Math.pow(2, b) - 1);
+  ctx.globalAlpha = 1;
+
+  if (ly.exact) {
+    // exact posterior exp(-m (L - Lmin)); "kσ-equivalent" contour at log-density drop k²/2 from the mode
+    ctx.strokeStyle = css('--exact'); ctx.lineWidth = 2;
+    for (const k of [1, 2]) contour(ctx, P, L.f, L.nx, L.ny, L.xs, L.ys, k * k / 2 / m);
+    const em = D.exact[String(m)].mu;
+    dotAt(ctx, P.sx(em[0]), P.sy(em[1]), 4, css('--exact'));
+  }
+  if (ly.qstar) {
+    const q = D.exact[String(m)].qstar;
+    ctx.strokeStyle = css('--qstar'); ctx.lineWidth = 2;
+    for (const k of [1, 2]) { ctx.globalAlpha = k === 1 ? 1 : .6; ellipse(ctx, P, q.mu, q.cov, k); }
+    ctx.globalAlpha = 1; dotAt(ctx, P.sx(q.mu[0]), P.sy(q.mu[1]), 3.5, css('--qstar'));
+  }
+  if (ly.laplace) {
+    const S = D.laplace.cov[String(m)], mu = D.laplace.mu;
+    ctx.strokeStyle = css('--laplace'); ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    for (const k of [1, 2]) ellipse(ctx, P, mu, S, k);
+    ctx.setLineDash([]);
+    dotAt(ctx, P.sx(mu[0]), P.sy(mu[1]), 3, css('--laplace'));
+  }
+  if (ly.ivon) {
+    const iv = ivonAt(state.t);
+    if (iv.ok) {
+      ctx.strokeStyle = css('--ivon'); ctx.lineWidth = 2;
+      for (const k of [1, 2]) { ctx.globalAlpha = k === 1 ? 1 : .6; ellipse(ctx, P, iv.mu, iv.S, k); }
+      ctx.globalAlpha = 1; dotAt(ctx, P.sx(iv.mu[0]), P.sy(iv.mu[1]), 3.5, css('--ivon'));
+    }
+  }
+  if (state.pin != null) {
+    const pp = postAt(D.runs[state.pin].t, state.t);
+    if (pp.ok) {
+      ctx.strokeStyle = css('--pin'); ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+      for (const k of [1, 2]) ellipse(ctx, P, pp.mu, pp.S, k);
+      ctx.setLineDash([]); dotAt(ctx, P.sx(pp.mu[0]), P.sy(pp.mu[1]), 4, css('--pin'), surf);
+    }
+  }
+  if (ly.trail) {
+    // ~12 earlier covariances, fading in toward the current step
+    const n = Math.min(post.i, r.t.length / 5 - 1), K = 12;
+    ctx.strokeStyle = evon; ctx.lineWidth = 1;
+    for (let k = 0; k < K; k++) {
+      const i = Math.round(n * k / K); if (i >= n) break;
+      const q = postAt(r.t, i); if (!q.ok) continue;
+      ctx.globalAlpha = 0.08 + 0.3 * k / K; ellipse(ctx, P, q.mu, q.S, 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+  if (ly.traj) {
+    const n = Math.min(post.i, r.t.length / 5 - 1);
+    ctx.strokeStyle = evon; ctx.globalAlpha = .55; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = 0; i <= n; i++) { const x = r.t[i * 5], y = r.t[i * 5 + 1]; if (!isFinite(x)) break; i ? ctx.lineTo(P.sx(x), P.sy(y)) : ctx.moveTo(P.sx(x), P.sy(y)); }
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  if (ly.trail || ly.traj) { ctx.strokeStyle = evon; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(P.sx(D.setup.w0[0]), P.sy(D.setup.w0[1]), 3.5, 0, 7); ctx.stroke(); }
+  if (post.ok) {
+    if (ly.samples) {
+      ctx.fillStyle = evon; ctx.strokeStyle = surf; ctx.lineWidth = .8;
+      for (const [a, b] of samplesOf(post.mu, post.S, state.nsamp)) { ctx.beginPath(); ctx.arc(P.sx(a), P.sy(b), 2.6, 0, 7); ctx.globalAlpha = .6; ctx.fill(); ctx.globalAlpha = .8; ctx.stroke(); }
+      ctx.globalAlpha = 1;
+    }
+    if (ly.evon) {
+      ctx.lineWidth = 2; ctx.strokeStyle = evon;
+      ctx.globalAlpha = .6; ellipse(ctx, P, post.mu, post.S, 2, .07);
+      ctx.globalAlpha = 1; ctx.shadowColor = evon; ctx.shadowBlur = 10; ellipse(ctx, P, post.mu, post.S, 1, .13); ctx.shadowBlur = 0;
+      ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 6;
+      dotAt(ctx, P.sx(post.mu[0]), P.sy(post.mu[1]), 5.5, evon, surf); ctx.shadowBlur = 0;
+    }
+    const px = P.sx(post.mu[0]), py = P.sy(post.mu[1]);
+    if (px < P.x0 || px > P.x0 + P.w || py < P.y0 || py > P.y0 + P.h) {
+      ctx.fillStyle = css('--text-primary'); ctx.font = '12px ui-sans-serif, system-ui'; ctx.textAlign = 'left';
+      ctx.fillText(`EVON mean off-view at (${fnum(post.mu[0], 1)}, ${fnum(post.mu[1], 1)}) — double-click to fit`, P.x0 + 8, P.y0 + 16);
+    }
+  }
+  if (state.probe) {
+    const [a, b] = state.probe, px = P.sx(a), py = P.sy(b), c = css('--probe');
+    ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.globalAlpha = .5; ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.moveTo(P.sx(0), P.sy(0)); ctx.lineTo(px, py); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    dotAt(ctx, px, py, 5, c, surf);
+  }
+  ctx.restore();
+  axes(ctx, P, wview, 'w₁', 'w₂');
+}
+
+// ------------------------------------------------------------------ feature space
+const XVIEW0 = {x0: -8, x1: 4, y0: -3, y1: 9};
+const XWIDE = {x0: -26, x1: 22, y0: -21, y1: 27};
+let xview = {...XVIEW0};
+const predCache = {key: null};
+function predictive(PW, key, res = 110) {
+  // MC predictive on a res x res grid over the current feature view, cached per (run, step, view)
+  if (key && predCache.key === key && predCache.theme === themeKey()) return predCache.img;
+  const nx = res, ny = res, c = document.createElement('canvas'); c.width = nx; c.height = ny;
+  const cx = c.getContext('2d'), im = cx.createImageData(nx, ny);
+  const neg = css('--div-neg').split(',').map(Number), pos = css('--div-pos').split(',').map(Number);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const x1 = xview.x0 + (i + .5) / nx * (xview.x1 - xview.x0), x2 = xview.y1 - (j + .5) / ny * (xview.y1 - xview.y0);
+    let p = 0; for (const [a, b] of PW) p += 1 / (1 + Math.exp(-(a * x1 + b * x2)));
+    p /= PW.length;
+    const col = p >= .5 ? pos : neg, s = Math.abs(p - .5) * 2, o = (j * nx + i) * 4;
+    im.data[o] = col[0]; im.data[o + 1] = col[1]; im.data[o + 2] = col[2]; im.data[o + 3] = Math.round(s * 0.28 * 255);
+  }
+  cx.putImageData(im, 0, 0);
+  if (key) Object.assign(predCache, {key, img: c, theme: themeKey()});
+  return c;
+}
+function drawX() {
+  if (missing().length) return;
+  const cv = document.getElementById('xcv');
+  const {ctx, w, h} = setupCanvas(cv);
+  const P = frame(w, h, xview); cv._P = P;
+  const r = run(), post = evonPost(), m = essMult();
+  const useExact = state.layers.xexact;
+  const ws = useExact ? getExactSamples(m).slice(0, state.nsamp) : post.ok ? samplesOf(post.mu, post.S, state.nsamp) : [];
+  const mean = useExact ? D.exact[String(m)].mu : post.ok ? post.mu : null;
+  ctx.fillStyle = css('--surface-1'); ctx.fillRect(P.x0, P.y0, P.w, P.h);
+  if (state.layers.pred && ws.length) {
+    const anim = !useExact && post.animating;
+    const key = anim ? null : [useExact ? 'ex' + m : cur(), state.t, xview.x0, xview.x1, xview.y0, xview.y1].join();
+    const PW = useExact ? getExactSamples(m).slice(0, 200) : samplesOf(post.mu, post.S, anim ? 40 : 200);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(predictive(PW, key, anim ? 50 : 110), P.x0, P.y0, P.w, P.h);
+  }
+  ctx.save(); ctx.beginPath(); ctx.rect(P.x0, P.y0, P.w, P.h); ctx.clip();
+  const R = 4 * Math.max(xview.x1 - xview.x0, xview.y1 - xview.y0) + Math.hypot(xview.x0, xview.y0);
+  const line = ([a, b]) => { const n = Math.hypot(a, b) || 1, dx = -b / n, dy = a / n; ctx.beginPath(); ctx.moveTo(P.sx(-R * dx), P.sy(-R * dy)); ctx.lineTo(P.sx(R * dx), P.sy(R * dy)); ctx.stroke(); };
+  ctx.strokeStyle = css('--text-primary'); ctx.lineWidth = .7; ctx.globalAlpha = Math.max(.08, Math.min(.35, 8 / ws.length)); ctx.setLineDash([6, 5]);
+  for (const s of ws) line(s);
+  ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.lineWidth = 2;
+  if (mean) line(mean);
+  if (state.pin != null) {
+    const pp = postAt(D.runs[state.pin].t, state.t);
+    if (pp.ok) {
+      ctx.strokeStyle = css('--pin'); ctx.lineWidth = .7; ctx.globalAlpha = .35; ctx.setLineDash([2, 4]);
+      for (const s of samplesOf(pp.mu, pp.S, 20)) line(s);
+      ctx.globalAlpha = 1; ctx.lineWidth = 2; ctx.setLineDash([7, 4]); line(pp.mu); ctx.setLineDash([]);
+    }
+  }
+  if (state.probe) {
+    ctx.strokeStyle = css('--probe'); ctx.lineWidth = 2.5; line(state.probe);
+    // the probe's weight vector, drawn from the origin, is the boundary's normal: it points toward class 1
+    const [a, b] = state.probe, n = Math.hypot(a, b) || 1, s = 0.12 * (xview.x1 - xview.x0);
+    ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(P.sx(0), P.sy(0)); ctx.lineTo(P.sx(s * a / n), P.sy(s * b / n)); ctx.stroke();
+  }
+  const surf = css('--surface-1'), c0 = css('--cls0'), c1 = css('--cls1');
+  ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1;
+  for (let i = 0; i < N; i++) {
+    const px = P.sx(X[i][0]), py = P.sy(X[i][1]);
+    ctx.lineWidth = 1.5; ctx.strokeStyle = surf;
+    if (Y[i] === 0) { ctx.fillStyle = c0; ctx.beginPath(); ctx.roundRect(px - 4.2, py - 4.2, 8.4, 8.4, 1.5); ctx.fill(); ctx.stroke(); }
+    else { ctx.fillStyle = c1; ctx.beginPath(); ctx.arc(px, py, 4.7, 0, 7); ctx.fill(); ctx.stroke(); }
+  }
+  ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.font = '12px ui-sans-serif, system-ui'; ctx.textAlign = 'left'; ctx.fillStyle = css('--text-primary');
+  if (state.probe) {
+    const [a, b] = state.probe;
+    const txt = `hovered w = (${fnum(a, 2)}, ${fnum(b, 2)}) · loss ${fnum(loss(a, b), 2)} · train acc ${(100 * X.filter((x, i) => ((a * x[0] + b * x[1]) > 0) === (Y[i] === 1)).length / N).toFixed(0)}%`;
+    ctx.fillStyle = css('--surface-1'); ctx.globalAlpha = .85; ctx.fillRect(P.x0 + 4, P.y0 + 4, ctx.measureText(txt).width + 8, 18); ctx.globalAlpha = 1;
+    ctx.fillStyle = css('--probe'); ctx.fillText(txt, P.x0 + 8, P.y0 + 17);
+  } else if (!post.ok && !useExact) {
+    ctx.textAlign = 'center'; ctx.fillText('run diverged — no posterior to sample', P.x0 + P.w / 2, P.y0 + 20);
+  }
+  ctx.restore();
+  axes(ctx, P, xview, 'feature 1', 'feature 2');
+}
+
+// ------------------------------------------------------------------ training curves
+const lrFrac = s => 0.5 * (1 + Math.cos(Math.PI * s / STEPS));
+const sxStep = s => Math.log10(s + 1);
+let C = null;
+const curveCols = w => w < 520 ? 2 : w < 900 ? 3 : 5;
+function drawC() {
+  const cv = document.getElementById('ccv');
+  const {ctx, w, h} = setupCanvas(cv);
+  const m = String(essMult()), r = run(), ex = D.exact[m], q = D.exact[m].qstar, iv = D.ivon[m];
+  const pin = state.pin != null ? D.runs[state.pin] : null;
+  const nTraj = flat => flat.length / 5;
+  const series = (flat, f) => Array.from({length: nTraj(flat)}, (_, i) => { const p = postAt(flat, i); return p.ok ? f(p) : null; });
+  const sd0 = p => Math.sqrt(p.S[0][0]), sd1 = p => Math.sqrt(p.S[1][1]), crr = p => p.S[0][1] / Math.sqrt(p.S[0][0] * p.S[1][1]);
+  const exsd = [Math.sqrt(ex.cov[0][0]), Math.sqrt(ex.cov[1][1])], qsd = [Math.sqrt(q.cov[0][0]), Math.sqrt(q.cov[1][1])];
+  const panels = [
+    {title: 'KL(q ‖ exact)', log: true, lines: [[r.klt, 'evon'], [iv.klt, 'ivon'], [pin && pin.klt, 'pin']], refs: [[q.kl, 'qstar', 'best Gaussian']]},
+    {title: 'std w₁', lines: [[series(r.t, sd0), 'evon'], [series(iv.t, sd0), 'ivon'], [pin && series(pin.t, sd0), 'pin']], refs: [[exsd[0], 'exact', 'exact'], [qsd[0], 'qstar', 'best Gaussian']]},
+    {title: 'std w₂', lines: [[series(r.t, sd1), 'evon'], [series(iv.t, sd1), 'ivon'], [pin && series(pin.t, sd1), 'pin']], refs: [[exsd[1], 'exact', 'exact'], [qsd[1], 'qstar', 'best Gaussian']]},
+    {title: 'corr(w₁, w₂)', fixed: [-1, 1], lines: [[series(r.t, crr), 'evon'], [pin && series(pin.t, crr), 'pin']], refs: [[ex.cov[0][1] / Math.sqrt(ex.cov[0][0] * ex.cov[1][1]), 'exact', 'exact'], [q.cov[0][1] / Math.sqrt(q.cov[0][0] * q.cov[1][1]), 'qstar', 'best Gaussian'], [0, 'ivon', 'IVON (diagonal)']]},
+    {title: 'lr / lr₀ (cosine)', fixed: [0, 1], lines: [[D.steps.map(lrFrac), 'evon']], refs: []},
+  ];
+  const cols = curveCols(w), rowH = h / Math.ceil(panels.length / cols), gap = 18, pw = (w - gap * (cols - 1)) / cols;
+  const xs0 = sxStep(0), xs1 = sxStep(STEPS);
+  C = {panels: [], pw, gap};
+  ctx.font = FONT;
+  panels.forEach((pn, k) => {
+    const left = (k % cols) * (pw + gap), top = Math.floor(k / cols) * rowH, m = {l: 38, r: k % cols === cols - 1 ? 12 : 6, t: 18, b: 22};
+    const x0 = left + m.l, x1 = left + pw - m.r, y0 = top + m.t, y1 = top + rowH - m.b;
+    let vals = [];
+    for (const [arr] of pn.lines) if (arr) for (const v of arr) if (v != null && isFinite(v) && (!pn.log || v > 0)) vals.push(v);
+    for (const [v] of pn.refs) vals.push(v);
+    let lo, hi;
+    if (pn.fixed) [lo, hi] = pn.fixed;
+    else if (pn.log) { vals = vals.map(Math.log10); lo = Math.min(...vals); hi = Math.max(...vals); }
+    else { lo = Math.min(0, ...vals); hi = Math.max(...vals) * 1.05; }
+    if (hi - lo < 1e-9) hi = lo + 1;
+    const sx = s => x0 + (sxStep(s) - xs0) / (xs1 - xs0) * (x1 - x0);
+    const sy = v => y1 - ((pn.log ? Math.log10(Math.max(v, 1e-12)) : v) - lo) / (hi - lo) * (y1 - y0);
+    C.panels.push({x0, x1, y0, y1, sx, sy, pn});
+    // frame + ticks
+    ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1;
+    ctx.fillStyle = css('--text-muted'); ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    const yt = pn.log ? niceTicks(lo, hi, 3).filter(t => Number.isInteger(t)).map(t => Math.pow(10, t)) : niceTicks(lo, hi, 3);
+    for (const t of yt) { const y = sy(t); if (y < y0 - 1 || y > y1 + 1) continue; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); ctx.fillText(pn.log ? (t >= 1000 ? t / 1000 + 'k' : t < 1 ? fnum(t, 1) : String(t)) : fnum(t, Math.abs(t) < 1 && t !== 0 ? 1 : 0), x0 - 4, y); }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    for (const s of [0, 10, 100, 1000, 10000]) { const x = sx(s); ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke(); ctx.fillText(s >= 1000 ? s / 1000 + 'k' : s, x, y1 + 4); }
+    ctx.fillStyle = css('--text-secondary'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText(pn.title, x0, y0 - 4);
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, y0 - 1, x1 - x0, y1 - y0 + 2); ctx.clip();
+    for (const [v, c] of pn.refs) { ctx.strokeStyle = css('--' + c); ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(x0, sy(v)); ctx.lineTo(x1, sy(v)); ctx.stroke(); ctx.setLineDash([]); }
+    for (const [arr, c] of [...pn.lines].reverse()) {
+      if (!arr) continue;
+      ctx.strokeStyle = css('--' + c); ctx.lineWidth = c === 'evon' ? 2 : 1.5; ctx.beginPath();
+      let pen = false;
+      arr.forEach((v, i) => { if (v == null || !isFinite(v)) { pen = false; return; } const x = sx(D.steps[i]), y = sy(v); pen ? ctx.lineTo(x, y) : ctx.moveTo(x, y); pen = true; });
+      ctx.stroke();
+    }
+    ctx.restore();
+    // current-step crosshair
+    const xc = sx(D.steps[state.t]);
+    ctx.strokeStyle = css('--text-primary'); ctx.lineWidth = 1; ctx.globalAlpha = .6; ctx.beginPath(); ctx.moveTo(xc, y0); ctx.lineTo(xc, y1); ctx.stroke(); ctx.globalAlpha = 1;
+    const cv0 = pn.lines[0][0][Math.min(state.t, pn.lines[0][0].length - 1)];
+    if (cv0 != null && isFinite(cv0)) dotAt(ctx, xc, sy(cv0), 3.5, css('--evon'), css('--surface-1'));
+  });
+}
+function curveStepAt(e) {
+  const b = document.getElementById('ccv').getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+  const p = C.panels.find(p => x >= p.x0 - 8 && x <= p.x1 + 8 && y >= p.y0 - 20 && y <= p.y1 + 22) || C.panels.find(p => x >= p.x0 - 8 && x <= p.x1 + 8) || C.panels[0];
+  let best = 0, bd = Infinity;
+  D.steps.forEach((s, i) => { const d = Math.abs(p.sx(s) - x); if (d < bd) { bd = d; best = i; } });
+  return {i: best, p};
+}
+
+// ------------------------------------------------------------------ metrics helpers
+function metricVal(r, met) { const v = r[met]; return r.d || v == null || !isFinite(v) ? null : Math.max(v, 1e-3); }
+const finiteSorted = met => D.runs.map(r => metricVal(r, met)).filter(v => v != null).sort((a, b) => a - b);
+
+// ------------------------------------------------------------------ sensitivity strips
+let SP = null;
+function jitter(i) { const x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x) - .5; }
+// phones pair each 5-valued hyperparameter with a 2-valued one so tick labels fit
+const stripRows = w => w < 520 ? [['lr', 'whiten_prec_grad'], ['hess_init', 'beta1'], ['beta2', 'ess_mult'], ['beta3', 'phasing']]
+  : w < 1100 ? [KEYS.slice(0, 4), KEYS.slice(4)] : [KEYS];
+function drawS() {
+  const cv = document.getElementById('scv');
+  const {ctx, w, h} = setupCanvas(cv);
+  const met = state.metric, all = finiteSorted(met);
+  const lo = Math.log10(all[0]), hi = Math.log10(all[all.length - 1]);
+  const rows = stripRows(w), rowH = h / rows.length, gap = 14;
+  const curIdx = cur(), m = state.sel.ess_mult;
+  const evon = css('--evon'), muted = css('--text-muted'), surf = css('--surface-1');
+  SP = {dots: []};
+  ctx.font = FONT;
+  rows.forEach((keys, rr) => {
+  const units = keys.reduce((a, k) => a + G[k].length + 1, 0), unitW = (w - 34 - gap * (keys.length - 1)) / units, top = rr * rowH;
+  let left = 0;
+  keys.forEach((k, kk) => {
+    const pw = unitW * (G[k].length + 1) + (kk === 0 ? 34 : 0);
+    const x0 = left + (kk === 0 ? 34 : 6), x1 = left + pw - 4, y0 = top + 18, y1 = top + rowH - 22;
+    left += pw + gap;
+    const nv = G[k].length, cw = (x1 - x0) / nv;
+    const cx = j => x0 + (j + .5) * cw;
+    const sy = v => y1 - (Math.log10(v) - lo) / (hi - lo) * (y1 - y0);
+    // y grid (shared across panels)
+    ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1; ctx.fillStyle = muted; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (const t of niceTicks(lo, hi, 4).filter(t => Number.isInteger(t))) { const y = sy(Math.pow(10, t)); ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); if (kk === 0) ctx.fillText(fnum(Math.pow(10, t), t < 0 ? -t : 0), x0 - 4, y); }
+    ctx.fillStyle = css('--text-secondary'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(SHORT[k], x0, y0 - 4);
+    ctx.fillStyle = muted; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    G[k].forEach((v, j) => ctx.fillText(['beta1', 'beta2', 'beta3'].includes(k) ? (v === -1 ? 'tied' : String(v).replace(/^0/, '')) : fmt(k, v), cx(j), y1 + 5));
+    // dots: all runs at this ess (both ess in the ess panel)
+    const med = G[k].map(() => []);
+    ctx.fillStyle = muted; ctx.globalAlpha = .28;
+    D.runs.forEach((r, idx) => {
+      const v = metricVal(r, met); if (v == null) return;
+      const s = selOf(idx); if (k !== 'ess_mult' && s.ess_mult !== m) return;
+      const x = cx(s[k]) + jitter(idx) * cw * .6, y = sy(v);
+      ctx.fillRect(x - 1.25, y - 1.25, 2.5, 2.5);
+      med[s[k]].push(v);
+      SP.dots.push({x: x + 0, y, idx, cv: 'scv'});
+    });
+    ctx.globalAlpha = 1;
+    // median ticks
+    ctx.strokeStyle = css('--text-secondary'); ctx.lineWidth = 2;
+    med.forEach((a, j) => { if (!a.length) return; a.sort((p, q) => p - q); const y = sy(a[Math.floor(a.length / 2)]); ctx.beginPath(); ctx.moveTo(cx(j) - cw * .34, y); ctx.lineTo(cx(j) + cw * .34, y); ctx.stroke(); });
+    // slice through the current run: vary only k
+    const pts = G[k].map((_, j) => { const idx = idxOf({...state.sel, [k]: j}); const v = metricVal(D.runs[idx], met); return v == null ? null : {x: cx(j) + jitter(idx) * cw * .6, y: sy(v), idx}; });
+    ctx.strokeStyle = evon; ctx.lineWidth = 1.5; ctx.beginPath(); let pen = false;
+    for (const p of pts) { if (!p) { pen = false; continue; } pen ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); pen = true; }
+    ctx.stroke();
+    for (const p of pts) if (p) dotAt(ctx, p.x, p.y, p.idx === curIdx ? 5 : 3, evon, p.idx === curIdx ? surf : null);
+    if (sHover != null) {
+      const hs = selOf(sHover), v = metricVal(D.runs[sHover], met);
+      if (v != null && (k === 'ess_mult' || hs.ess_mult === m)) {
+        const x = cx(hs[k]) + jitter(sHover) * cw * .6;
+        ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 6;
+        dotAt(ctx, x, sy(v), 4.5, css('--text-primary'), surf); ctx.restore();
+      }
+    }
+    if (state.pin != null) {
+      const ps = selOf(state.pin), v = metricVal(D.runs[state.pin], met);
+      if (v != null && (k === 'ess_mult' || ps.ess_mult === m)) {
+        const x = cx(ps[k]) + jitter(state.pin) * cw * .6; ctx.strokeStyle = css('--pin'); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(x, sy(v), 6, 0, 7); ctx.stroke();
+      }
+    }
+  });
+  });
+}
+
+// ------------------------------------------------------------------ overview heatmap
+const SEQ = () => [1, 2, 3, 4, 5].map(i => css('--seq-' + i));
+const hex2rgb = h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+function ramp(seq, t) {
+  const x = Math.max(0, Math.min(1, t)) * (seq.length - 1), k = Math.min(Math.floor(x), seq.length - 2), f = x - k;
+  const a = hex2rgb(seq[k]), b = hex2rgb(seq[k + 1]);
+  return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * f).toString(16).padStart(2, '0')).join('');
+}
+let H = {};
+function drawH() {
+  const ax = document.getElementById('ax').value, ay = document.getElementById('ay').value, met = state.metric;
+  const cv = document.getElementById('hcv');
+  const {ctx, w, h} = setupCanvas(cv);
+  const nx = G[ax].length, ny = G[ay].length;
+  const m = narrow(w) ? {l: 62, r: 4, t: 6, b: 36} : {l: 150, r: 10, t: 10, b: 36};
+  const cw = Math.min((w - m.l - m.r) / nx, 90), ch = (h - m.t - m.b) / ny;
+  const vals = [];
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const s = {...state.sel, [ax]: i, [ay]: j}; const r = D.runs[idxOf(s)];
+    vals.push({i, j, s, r, v: metricVal(r, met)});
+  }
+  let lo, hi;
+  if (document.getElementById('hscale').value === 'slice') {
+    const f = vals.map(c => c.v).filter(v => v != null);
+    lo = Math.log10(Math.min(...f)); hi = Math.log10(Math.max(...f));
+  } else {
+    const all = finiteSorted(met); lo = Math.log10(all[0]); hi = Math.log10(all[Math.floor(all.length * .99)]);
+  }
+  if (hi - lo < 1e-6) hi = lo + 1e-6;
+  const seq = SEQ();
+  const colorOf = v => ramp(seq, (Math.log10(v) - lo) / (hi - lo));
+  ctx.font = FONT;
+  for (const c of vals) {
+    const x = m.l + c.i * cw, y = m.t + c.j * ch;
+    if (c.v == null) {
+      ctx.fillStyle = css('--seq-0'); ctx.fillRect(x + 1, y + 1, cw - 2, ch - 2);
+      ctx.strokeStyle = css('--text-muted'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x + cw / 2 - 4, y + ch / 2 - 4); ctx.lineTo(x + cw / 2 + 4, y + ch / 2 + 4); ctx.moveTo(x + cw / 2 + 4, y + ch / 2 - 4); ctx.lineTo(x + cw / 2 - 4, y + ch / 2 + 4); ctx.stroke();
+    } else {
+      const col = colorOf(c.v);
+      ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(x + 1, y + 1, cw - 2, ch - 2, 3); ctx.fill();
+      if (cw > 46) {
+        const lum = hex2rgb(col).reduce((a, v, k) => a + v * [.299, .587, .114][k], 0);
+        ctx.fillStyle = lum < 140 ? '#fff' : '#0b0b0b'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(fnum(c.v, c.v < 10 ? 2 : 0), x + cw / 2, y + ch / 2);
+      }
+    }
+    if (hHover && c.i === hHover.i && c.j === hHover.j) { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 8; ctx.strokeStyle = css('--surface-1'); ctx.lineWidth = 2.5; ctx.strokeRect(x + 2, y + 2, cw - 4, ch - 4); ctx.restore(); }
+    if (c.i === state.sel[ax] && c.j === state.sel[ay]) { ctx.strokeStyle = css('--text-primary'); ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, cw - 2, ch - 2); }
+    if (state.pin === idxOf(c.s)) { ctx.strokeStyle = css('--pin'); ctx.lineWidth = 2; ctx.setLineDash([3, 3]); ctx.strokeRect(x + 4, y + 4, cw - 8, ch - 8); ctx.setLineDash([]); }
+  }
+  ctx.fillStyle = css('--text-secondary'); ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let j = 0; j < ny; j++) ctx.fillText(fmt(ay, G[ay][j]), m.l - 6, m.t + (j + .5) * ch);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let i = 0; i < nx; i++) ctx.fillText(fmt(ax, G[ax][i]), m.l + (i + .5) * cw, m.t + ny * ch + 4);
+  ctx.fillText(SHORT[ax], m.l + nx * cw / 2, m.t + ny * ch + 20);
+  ctx.save(); ctx.translate(narrow(w) ? 2 : m.l - 70, m.t + ny * ch / 2); ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'top'; ctx.fillText(SHORT[ay], 0, 0); ctx.restore();
+  H = {m, cw, ch, nx, ny, vals, ax, ay, met};
+  const bar = `<span style="display:inline-flex;align-items:center;gap:5px">${fnum(Math.pow(10, lo), 3)}<span style="display:inline-block;width:140px;height:9px;border-radius:2px;background:linear-gradient(90deg,${seq.join(',')})"></span>${fnum(Math.pow(10, hi), 3)}</span>`;
+  document.getElementById('hleg').innerHTML = `<span>${METRIC_NAME[met]}, log scale, lower is better:</span>${bar}<span style="display:inline-flex;align-items:center;gap:4px"><span class="dot" style="border-radius:2px;width:14px;background:var(--seq-0)"></span>diverged</span>`;
+}
+
+// ------------------------------------------------------------------ side panel
+function drawBest() {
+  const met = state.metric, fixed = ['whiten_prec_grad', 'ess_mult'];
+  const rows = D.runs.map((r, idx) => ({r, idx, s: selOf(idx), v: metricVal(r, met)}))
+    .filter(o => fixed.every(k => o.s[k] === state.sel[k]) && o.v != null)
+    .sort((a, b) => a.v - b.v).slice(0, 12);
+  const c = cur();
+  document.getElementById('bestcol').textContent = {gap: 'gap', kl: 'KL', klg: 'KL-G', loss: 'loss'}[met];
+  document.getElementById('best').innerHTML = rows.map((o, k) =>
+    `<tr data-idx="${o.idx}" class="${o.idx === c ? 'cur' : ''}"><td>${k + 1}</td><td>${fmt('lr', G.lr[o.s.lr])}</td><td>${fmt('hess_init', G.hess_init[o.s.hess_init])}</td><td>${G.beta1[o.s.beta1]}</td><td>${G.beta2[o.s.beta2]}</td><td>${fmt('beta3', G.beta3[o.s.beta3])}</td><td>${G.phasing[o.s.phasing] ? 'on' : '—'}</td><td>${fnum(o.v, 3)}</td></tr>`).join('');
+}
+const cfgText = idx => { const s = selOf(idx); return KEYS.map(k => `${SHORT[k]} ${fmt(k, G[k][s[k]])}`).join(' · '); };
+let _gapStats = null;
+const gapStats = () => _gapStats ||= {
+  gaps: finiteSorted('gap'),
+  peerKL: Object.fromEntries(G.ess_mult.map(m => [m, D.runs.filter((x, i) => essOf(i) === m && metricVal(x, 'kl') != null).map(x => x.kl).sort((a, b) => a - b)])),
+};
+function drawMetrics() {
+  const r = run(), post = postAt(r.t, state.t), m = String(essMult()), ex = D.exact[m], q = ex.qstar;
+  const pin = state.pin != null ? D.runs[state.pin] : null, pp = pin && postAt(pin.t, state.t);
+  const sd = S => [Math.sqrt(S[0][0]), Math.sqrt(S[1][1])], cr = S => S[0][1] / Math.sqrt(S[0][0] * S[1][1]);
+  const final = state.t >= NC - 1, kt = r.klt[Math.min(state.t, r.klt.length - 1)];
+  document.getElementById('divbadge').innerHTML = r.d ? '<span class="badge bad">diverged</span>' : '';
+  document.getElementById('idxline').textContent = `config #${cur()} · ${final ? 'final' : 'step ' + D.steps[state.t].toLocaleString()} posterior`;
+  const rows = [
+    [`KL(q ‖ moment-matched G.)${qi('KL to the Gaussian with the exact posterior’s mean and covariance. Easier to compute, but it rewards covering the tails rather than fitting the bulk.')}`, final ? fnum(r.klg) : '—'],
+    ['loss at mean', post.ok ? fnum(loss(...post.mu), 2) : '—'],
+  ];
+  document.getElementById('metrics').innerHTML = rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+  // headline: KL to the exact posterior, with the Gaussian minimum underneath and a
+  // log meter over the runs at this ess (the minimum differs between ess values)
+  const klNow = final ? r.kl : kt, gapNow = klNow == null ? null : klNow - q.kl;
+  document.getElementById('heroNum').textContent = fnum(klNow, 3);
+  document.getElementById('heroTip').dataset.tip = `KL(q ‖ exact) in nats: how far this run’s Gaussian is from the exact posterior.<br><br>The exact posterior is not Gaussian, so no Gaussian gets below <b>${fnum(q.kl, 3)}</b> here` + (gapNow == null ? '.' : `; this run is <b>${fnum(gapNow, 3)}</b> above that.`);
+  const pk = gapStats().peerKL[essMult()], klo = Math.log10(pk[0]), khi = Math.log10(pk[pk.length - 1]);
+  const pos = v => v == null ? null : 100 * Math.max(0, Math.min(1, (Math.log10(v) - klo) / (khi - klo)));
+  const mk = document.getElementById('mk'), mp = document.getElementById('mkpin');
+  mk.style.left = (pos(klNow) ?? 0) + '%'; mk.hidden = klNow == null;
+  const pinKL = pin && essOf(state.pin) === essMult() ? (final ? pin.kl : pin.klt[Math.min(state.t, pin.klt.length - 1)]) : null;
+  mp.hidden = pinKL == null || !isFinite(pinKL); if (!mp.hidden) mp.style.left = pos(pinKL) + '%';
+  document.getElementById('meterLo').textContent = fnum(pk[0], 3);
+  document.getElementById('meterHi').textContent = fnum(pk[pk.length - 1], 1);
+  document.getElementById('meterRank').textContent = klNow == null ? '' : `better than ${Math.round(100 * pk.filter(v => v > klNow).length / pk.length)}% of runs at ess = ${essMult()}N`;
+  const cols = [['EVON', 'evon', post.ok ? post : null]];
+  if (pin) cols.push(['pinned', 'pin', pp.ok ? pp : null]);
+  cols.push(['best G', 'qstar', {mu: q.mu, S: q.cov}], ['exact', 'exact', {mu: ex.mu, S: ex.cov}]);
+  document.getElementById('cmphead').innerHTML = `<tr><th></th>${cols.map(([n, c]) => `<th style="color:var(--${c === 'pin' ? 'text-secondary' : c})">${n}</th>`).join('')}</tr>`;
+  const stat = [['mean w₁', p => p.mu[0]], ['mean w₂', p => p.mu[1]], ['std w₁', p => sd(p.S)[0]], ['std w₂', p => sd(p.S)[1]], ['corr', p => cr(p.S)]];
+  document.getElementById('cmp').innerHTML = stat.map(([a, f]) => `<tr><td>${a}</td>${cols.map(([, , p]) => `<td>${p ? fnum(f(p), 2) : '—'}</td>`).join('')}</tr>`).join('');
+  const ivk = D.ivon[m].klt[Math.min(state.t, D.ivon[m].klt.length - 1)];
+  const sw = (c, dash) => `<span class="sw${dash ? ' dash' : ''}" style="border-color:var(--${c})"></span>`;
+  const refs = [
+    [`${sw('qstar')}best possible Gaussian`, fnum(q.kl)],
+    [`${sw('ivon')}IVON, nb 1 settings${final ? '' : ' (this step)'}`, fnum(ivk)],
+    [`${sw('laplace', 1)}Laplace at MAP`, fnum(ex.kl_laplace, 1)],
+  ];
+  if (pin) refs.push([`${sw('pin', 1)}pinned #${state.pin}`, fnum(final ? pin.kl : pin.klt[Math.min(state.t, pin.klt.length - 1)])]);
+  document.getElementById('refs').innerHTML = `<dt style="grid-column:1/-1;color:var(--text-muted)">KL(q ‖ exact) of the references${qi('Laplace’s ellipse at the MAP spreads into weights that misclassify much of the data, where the exact posterior has almost no mass, hence its huge KL.')}</dt>` + refs.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+  const pb = document.getElementById('pinbtn');
+  pb.textContent = pin ? (state.pin === cur() ? '📌 unpin' : '📌 re-pin here') : '📌 pin';
+  pb.title = pin ? `pinned: ${cfgText(state.pin)}` : 'Freeze this run as a gray ghost to compare against';
+  document.getElementById('pinleg').style.display = pin ? '' : 'none';
+}
+
+// ------------------------------------------------------------------ what to try
+const TRY = [
+  ['Set β₂ = 0.99999 and move h₀: the curvature estimate never forgets h₀, so h₀ alone sets the posterior width and lr no longer matters.', {beta2: 0.99999, hess_init: 1e-3, beta1: 0.9}],
+  ['Now β₂ = 0.99: the Hessian estimate is noisy, so the width jumps between neighbouring lr values (look at the lr strip).', {beta2: 0.99, hess_init: 3e-3, beta1: 0.9}],
+  ['Pin the notebook 1 setting, then jump to the best run at ess = N and play the training: the best run ends wider and further out along the ridge.', 'pin-nb-best'],
+  ['Hover along the ridge of the loss landscape: far from the origin the classifier is the same line but more confident; near the origin the predictive flattens.', null],
+  ['Switch the feature view to wide: away from the data, the sampled boundaries fan out and the predictive turns uncertain.', 'wide'],
+  ['Pin a run, then turn phasing on: in 92% of matched runs the posterior ends up narrower (median std ×0.83) and its KL above the Gaussian minimum grows (median +0.26 nats). Halving the Hessian updates costs more than the cleaner eigenbasis gains here.', 'pin-phasing'],
+  ['Set β₃ = 0.9: an eigenbasis that rotates with recent gradients is worse than tied in 81% of matched runs; 0.99 and 0.999 behave like tied.', {beta3: 0.9}],
+  ['Compare whitening on/off in the whiten strip: unwhitened runs get to within 0.003 of the Gaussian minimum, while whitened ones never get closer than about 0.1 at ess = N.', null],
+];
+function buildTry() {
+  document.getElementById('try').innerHTML = TRY.map(([t, a], i) => `<li>${t}${a ? ` <a data-try="${i}">show me</a>` : ''}</li>`).join('');
+  document.querySelectorAll('[data-try]').forEach(el => el.onclick = () => {
+    const a = TRY[+el.dataset.try][1];
+    if (a === 'wide') { setWide(true); return; }
+    if (a === 'pin-phasing') { state.sel.phasing = 0; state.pin = cur(); state.sel.phasing = 1; state.t = NC - 1; update(); return; }
+    if (a === 'pin-nb-best') { setSel(NB); state.pin = cur(); preset('best1'); return; }
+    const cfg = {...Object.fromEntries(KEYS.map(k => [k, val(k)])), ...a};
+    setSel(cfg); state.t = NC - 1; update();
+  });
+}
+
+// ------------------------------------------------------------------ controls
+function buildControls() {
+  const root = document.getElementById('controls');
+  root.innerHTML = '';
+  for (const k of KEYS) {
+    const div = document.createElement('div'); div.className = 'ctrl';
+    if (G[k].length <= 2) {
+      div.innerHTML = `<div class="lab"><span>${LABEL[k]}${qi(WHY[k])}</span></div><div class="seg">${G[k].map((v, i) => `<button data-k="${k}" data-i="${i}">${k === 'ess_mult' ? `${v}N = ${v * N}` : fmt(k, v)}</button>`).join('')}</div>`;
+    } else {
+      div.innerHTML = `<div class="lab"><span>${LABEL[k]}${qi(WHY[k])}</span><b></b></div>
+        <input type="range" min="0" max="${G[k].length - 1}" step="1" data-k="${k}">
+        <div class="ticks">${G[k].map(v => `<span>${fmt(k, v)}</span>`).join('')}</div>`;
+    }
+    root.appendChild(div);
+  }
+  root.querySelectorAll('button[data-k]').forEach(b => b.onclick = () => { state.sel[b.dataset.k] = +b.dataset.i; update(); });
+  root.querySelectorAll('input[data-k]').forEach(inp => inp.oninput = () => { state.sel[inp.dataset.k] = +inp.value; update(); });
+}
+function syncControls() {
+  document.querySelectorAll('#controls button[data-k]').forEach(b => b.classList.toggle('on', +b.dataset.i === state.sel[b.dataset.k]));
+  document.querySelectorAll('#controls input[data-k]').forEach(inp => { inp.value = state.sel[inp.dataset.k]; inp.style.setProperty('--fill', `${100 * inp.value / inp.max}%`); inp.closest('.ctrl').querySelector('b').textContent = fmt(inp.dataset.k, val(inp.dataset.k)); });
+  document.querySelectorAll('.metricsel').forEach(s => s.value = state.metric);
+  document.getElementById('wide').classList.toggle('on', state.wide);
+}
+function drawTime() {
+  const ts = document.getElementById('tstep'); ts.max = NC - 1; ts.value = state.t; ts.style.setProperty('--fill', `${100 * state.t / (NC - 1)}%`);
+  document.getElementById('tval').textContent = `step ${D.steps[state.t].toLocaleString()} / ${STEPS.toLocaleString()}`;
+}
+const plotCards = () => ['wcv', 'xcv', 'ccv'].map(id => document.getElementById(id).closest('.card'));
+function update() {
+  syncControls(); drawTime();
+  const need = missing();
+  plotCards().forEach(c => c.classList.toggle('loading', need.length > 0 && !loadError));
+  if (!need.length) retarget(true);
+  if (need.length) {
+    drawLoading();
+    Promise.all(need.map(i => loadShard(i % NSLICE))).then(() => { loadError = null; update(); }, e => { loadError = e.message; plotCards().forEach(c => c.classList.remove('loading')); drawLoading(); });
+  } else { drawW(); drawX(); drawC(); drawMetrics(); }
+  drawS(); drawH(); drawBest();
+  history.replaceState(null, '', '#' + KEYS.map(k => `${k}=${state.sel[k]}`).join('&') + (state.pin != null ? `&pin=${state.pin}` : ''));
+}
+function updateFrame() { drawTime(); if (missing().length) return; retarget(false); drawW(); drawX(); drawC(); drawMetrics(); }
+
+function preset(p) {
+  if (p === 'nb') setSel(NB);
+  else {
+    const m = p === 'best10' ? 10 : 1;
+    const c = D.runs.map((r, idx) => ({idx, v: metricVal(r, 'gap')})).filter(o => o.v != null && (p === 'worst' || essOf(o.idx) === m));
+    c.sort((a, b) => p === 'worst' ? b.v - a.v : a.v - b.v);
+    state.sel = selOf(c[0].idx);
+  }
+  state.t = NC - 1; update();
+}
+document.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => preset(b.dataset.preset));
+
+for (const id of ['ax', 'ay']) {
+  const s = document.getElementById(id);
+  s.innerHTML = KEYS.filter(k => G[k].length > 1).map(k => `<option value="${k}">${SHORT[k]}</option>`).join('');
+}
+document.getElementById('ax').value = 'lr'; document.getElementById('ay').value = 'hess_init';
+['ax', 'ay', 'hscale'].forEach(id => document.getElementById(id).onchange = drawH);
+document.querySelectorAll('.metricsel').forEach(s => s.onchange = () => { state.metric = s.value; syncControls(); drawS(); drawH(); drawBest(); });
+document.querySelectorAll('[data-layer]').forEach(c => { c.checked = !!state.layers[c.dataset.layer]; c.onchange = () => { state.layers[c.dataset.layer] = +c.checked; drawW(); drawX(); }; });
+document.getElementById('nsamp').onchange = e => { state.nsamp = +e.target.value; drawW(); drawX(); };
+document.getElementById('tstep').oninput = e => { state.t = +e.target.value; updateFrame(); };
+document.getElementById('best').onclick = e => { const tr = e.target.closest('tr'); if (tr) { state.sel = selOf(+tr.dataset.idx); update(); } };
+document.getElementById('pinbtn').onclick = () => { state.pin = state.pin === cur() ? null : cur(); update(); };
+const setWide = on => { state.wide = on; xview = {...(on ? XWIDE : XVIEW0)}; syncControls(); drawX(); };
+document.getElementById('wide').onclick = () => setWide(!state.wide);
+let playing = null;
+document.getElementById('play').onclick = () => {
+  const b = document.getElementById('play');
+  if (playing) { clearInterval(playing); playing = null; b.textContent = '▶ play'; return; }
+  if (state.t >= NC - 1) state.t = 0;
+  b.textContent = '❚❚ pause';
+  playing = setInterval(() => { state.t++; if (state.t >= NC - 1) { state.t = NC - 1; clearInterval(playing); playing = null; b.textContent = '▶ play'; } updateFrame(); }, 60);
+};
+document.getElementById('theme').onclick = () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark'; try { localStorage.setItem('evon-theme', document.documentElement.dataset.theme); } catch (e) {} update();
+};
+
+// heatmap hover + click
+const hcv = document.getElementById('hcv');
+function hcell(e) {
+  const b = hcv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+  const i = Math.floor((x - H.m.l) / H.cw), j = Math.floor((y - H.m.t) / H.ch);
+  return i >= 0 && i < H.nx && j >= 0 && j < H.ny ? H.vals.find(c => c.i === i && c.j === j) : null;
+}
+const runTip = r => r.d ? 'diverged' : `<span class="m">KL above Gaussian min.</span> ${fnum(r.gap)}<br><span class="m">KL(q‖exact)</span> ${fnum(r.kl)}<br><span class="m">KL(q‖Gauss)</span> ${fnum(r.klg)}<br><span class="m">loss</span> ${fnum(r.loss, 2)} <span class="m">corr</span> ${fnum(r.corr, 2)}`;
+let hHover = null;
+const setHHover = c => { const k = c ? c.i + ',' + c.j : null; if (k !== (hHover && hHover.i + ',' + hHover.j)) { hHover = c; drawH(); } };
+hcv.onmousemove = e => {
+  const c = hcell(e); setHHover(c); if (!c) { hideTip(); hcv.style.cursor = ''; return; }
+  showTip(e, `<b>${SHORT[H.ax]} = ${fmt(H.ax, G[H.ax][c.i])}, ${SHORT[H.ay]} = ${fmt(H.ay, G[H.ay][c.j])}</b><br>` + runTip(c.r));
+  hcv.style.cursor = 'pointer';
+};
+hcv.onmouseleave = () => { hideTip(); setHHover(null); };
+hcv.onclick = e => { const c = hcell(e); if (c) { state.sel = {...c.s}; update(); } };
+
+// strip hover + click
+const scv = document.getElementById('scv');
+function sdot(e) {
+  const b = scv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+  let best = null, bd = 49;
+  for (const d of SP.dots) { const dd = (d.x - x) ** 2 + (d.y - y) ** 2; if (dd < bd) { bd = dd; best = d; } }
+  return best;
+}
+let sHover = null;
+const setSHover = idx => { if (idx !== sHover) { sHover = idx; drawS(); } };
+scv.onmousemove = e => { const d = sdot(e); setSHover(d ? d.idx : null); if (!d) { hideTip(); scv.style.cursor = ''; return; } showTip(e, `<b>#${d.idx}</b> <span class="m">${cfgText(d.idx)}</span><br>` + runTip(D.runs[d.idx])); scv.style.cursor = 'pointer'; };
+scv.onmouseleave = () => { hideTip(); setSHover(null); };
+scv.onclick = e => { const d = sdot(e); if (d) { state.sel = selOf(d.idx); update(); } };
+
+// training-curve scrub + hover
+const ccv = document.getElementById('ccv');
+let scrub = false;
+ccv.onpointerdown = e => { if (!C || missing().length) return; scrub = true; ccv.setPointerCapture(e.pointerId); state.t = curveStepAt(e).i; updateFrame(); };
+ccv.onpointerup = () => scrub = false;
+ccv.onpointermove = e => {
+  if (!C || missing().length) return;
+  const {i, p} = curveStepAt(e);
+  if (scrub) { state.t = i; updateFrame(); }
+  const lines = p.pn.lines.filter(([a]) => a).map(([a, c]) => [a[Math.min(i, a.length - 1)], c]);
+  const name = {evon: 'EVON', ivon: 'IVON', pin: 'pinned'};
+  showTip(e, `<b>step ${D.steps[i].toLocaleString()}</b> · ${p.pn.title}<br>` + lines.map(([v, c]) => `<span class="m">${p.pn.title.startsWith('lr') ? 'lr / lr₀' : name[c]}</span> ${fnum(v)}`).join('<br>') +
+    p.pn.refs.map(([v, , n]) => `<br><span class="m">${n}</span> ${fnum(v)}`).join(''));
+};
+ccv.onpointerleave = hideTip;
+
+// zoom / pan for both spatial canvases; hover probe on weight space
+function zoomable(cv, get, set, reset, redraw, onHover) {
+  cv.addEventListener('wheel', e => {
+    e.preventDefault(); const P = cv._P, b = cv.getBoundingClientRect(), v = get();
+    const cx = P.ix(e.clientX - b.left), cy = P.iy(e.clientY - b.top), f = Math.exp(e.deltaY * 0.0015);
+    set({x0: cx + (v.x0 - cx) * f, x1: cx + (v.x1 - cx) * f, y0: cy + (v.y0 - cy) * f, y1: cy + (v.y1 - cy) * f}); redraw();
+  }, {passive: false});
+  let drag = null;
+  cv.onpointerdown = e => {
+    if (e.pointerType === 'touch') { if (onHover) onHover(e); return; }
+    drag = {x: e.clientX, y: e.clientY, v: {...get()}}; cv.setPointerCapture(e.pointerId);
+  };
+  cv.onpointermove = e => {
+    if (e.pointerType === 'touch') { if (onHover) onHover(e); return; }
+    if (drag && (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 2)) {
+      const sc = cv._P.sc, dx = (e.clientX - drag.x) / sc, dy = (e.clientY - drag.y) / sc;
+      set({x0: drag.v.x0 - dx, x1: drag.v.x1 - dx, y0: drag.v.y0 + dy, y1: drag.v.y1 + dy}); redraw(); return;
+    }
+    if (!drag && onHover) onHover(e);
+  };
+  cv.onpointerup = () => drag = null;
+  cv.ondblclick = () => { reset(); redraw(); };
+}
+const wcv = document.getElementById('wcv');
+zoomable(wcv, () => wview, v => wview = v, () => {
+  // reset; if the EVON posterior falls outside the default view, fit it too
+  wview = {...WVIEW0}; if (!run().t) return;
+  const post = postAt(run().t, state.t);
+  if (post.ok) {
+    const e = eig2(post.S), rr = 2.2 * Math.sqrt(Math.max(e.l1, 0));
+    const b = {x0: post.mu[0] - rr, x1: post.mu[0] + rr, y0: post.mu[1] - rr, y1: post.mu[1] + rr};
+    if (b.x0 < wview.x0 || b.x1 > wview.x1 || b.y0 < wview.y0 || b.y1 > wview.y1) {
+      const x0 = Math.min(b.x0, wview.x0), x1 = Math.max(b.x1, wview.x1), y0 = Math.min(b.y0, wview.y0), y1 = Math.max(b.y1, wview.y1);
+      const s = Math.max((x1 - x0) / (WVIEW0.x1 - WVIEW0.x0), (y1 - y0) / (WVIEW0.y1 - WVIEW0.y0));
+      const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, hx = (WVIEW0.x1 - WVIEW0.x0) * s / 2, hy = (WVIEW0.y1 - WVIEW0.y0) * s / 2;
+      wview = {x0: mx - hx, x1: mx + hx, y0: my - hy, y1: my + hy};
+    }
+  }
+}, () => { drawW(); }, e => {
+  const P = wcv._P, b = wcv.getBoundingClientRect(), px = e.clientX - b.left, py = e.clientY - b.top;
+  if (px < P.x0 || px > P.x0 + P.w || py < P.y0 || py > P.y0 + P.h) { if (state.probe) { state.probe = null; drawW(); drawX(); } return; }
+  state.probe = [P.ix(px), P.iy(py)]; drawW(); drawX();
+});
+// on touch the probe stays where the finger lifted
+wcv.addEventListener('pointerleave', e => { if (e.pointerType === 'touch') return; state.probe = null; drawW(); drawX(); });
+const xcv = document.getElementById('xcv');
+zoomable(xcv, () => xview, v => xview = v, () => { xview = {...(state.wide ? XWIDE : XVIEW0)}; }, () => drawX());
+
+let lastW = innerWidth;
+window.addEventListener('resize', () => { if (innerWidth === lastW) return; lastW = innerWidth; landCache.key = null; update(); });
+window.addEventListener('hashchange', () => { loadHash(); update(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => update());
+buildControls(); buildTry(); update();
+</script>
+</body>
+</html>

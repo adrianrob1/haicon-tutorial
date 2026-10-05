@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>EVON hyperparameter explorer · two-moons MLP</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try { const t = localStorage.getItem('evon-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<style>
+/*__STYLE__*/
+/* ---------------------------------------------------------------- nn page */
+.viz-root { --l1: #2a78d6; --l2: #eb6834; --l3: #1baf7a; --l4: #eda100; --l5: #e87ba4; }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .viz-root { --l1: #3987e5; --l2: #d95926; --l3: #199e70; --l4: #c98500; --l5: #d55181; } }
+:root[data-theme="dark"] .viz-root { --l1: #3987e5; --l2: #d95926; --l3: #199e70; --l4: #c98500; --l5: #d55181; }
+.covgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
+.covgrid figure { margin: 0; }
+.covgrid figcaption { font-size: 11px; color: var(--text-secondary); display: flex; justify-content: space-between; margin-bottom: 3px; }
+.covgrid figcaption b { color: var(--text-primary); }
+.covgrid canvas { border-radius: 6px; }
+.two { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.lsw { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; }
+@media (max-width: 1250px) { .row2, .two { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .covgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+</style>
+</head>
+<body class="viz-root">
+<header>
+  <div class="brand">
+    <h1>EVON hyperparameter explorer</h1>
+    <span class="sub">notebook 2 · 5184 runs<span class="qi" tabindex="0" data-tip="Each run trains for 7500 steps.&lt;br&gt;&lt;br&gt;Notebook 2’s setup: 200 two-moons points (noise 0.08), an MLP with four 128-unit ReLU layers (≈50k weights), BCE loss, cosine LR to 0 over 7500 steps, mc_samples = 1. Every run starts from the same initialization and noise seed.&lt;br&gt;&lt;br&gt;No exact posterior exists here, so runs are scored on held-out moons (NLL, calibration) and on how uncertain they are far from the data (a ring at radius 4–6).&lt;br&gt;&lt;br&gt;Weight decay is the prior: precision ess · wd. It also floors the curvature, so directions whose learned curvature h falls below wd are bounded by the prior alone.">?</span></span>
+  </div>
+  <nav class="tabs"><a href="index.html">2D logistic regression</a><a class="on" href="nn.html">neural network</a></nav>
+  <span class="badge" id="preview" hidden></span>
+  <span class="spacer"></span>
+  <div class="actions">
+  <span class="presets">jump to
+    <button data-preset="nb">notebook 2 EVON</button>
+    <button data-preset="best">best</button>
+    <button data-preset="worst">worst</button>
+  </span>
+    <button id="theme" title="Toggle light/dark">◐ theme</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="side">
+    <div class="card">
+      <h2>Hyperparameters<span class="qi" tabindex="0" data-tip="Every combination on this grid was trained, so each setting loads a real run. Arrow keys work on focused sliders.">?</span></h2>
+      <div id="controls"></div>
+    </div>
+    <div class="card">
+      <h2>This run <span id="divbadge"></span><span style="flex:1"></span><button id="pinbtn">📌 pin</button></h2>
+      <div class="hero"><span class="num" id="heroNum">—</span><span class="unit" id="heroUnit"></span></div>
+      <div class="meter"><span class="mk pin" id="mkpin" hidden></span><span class="mk" id="mk"></span></div>
+      <div class="meter-lab"><span id="meterLo"></span><span id="meterRank"></span><span id="meterHi"></span></div>
+      <dl class="metrics" id="metrics"></dl>
+      <table class="cmp"><thead id="cmphead"></thead><tbody id="cmp"></tbody></table>
+    </div>
+    <details class="card try-box">
+      <summary>What to try</summary>
+      <ul class="try" id="try"></ul>
+    </details>
+  </div>
+
+  <div class="main">
+    <div class="sect"><h3>Selected run</h3><p>the configuration on the left, at the chosen training step</p></div>
+    <div class="card">
+      <div class="timebar">
+        <button id="play">▶ play</button>
+        <span style="color:var(--text-secondary)">training step</span>
+        <input type="range" id="tstep" min="0" max="1" value="1">
+        <span class="val" id="tval"></span>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <h2>Predictions in feature space<span class="qi" tabindex="0" data-tip="Background: the posterior predictive p(y=1|x) from 48 samples, or (toggle) its epistemic part, the mutual information between the prediction and the weights. Dashed lines: decision boundaries of 16 posterior samples; solid: the mean network.&lt;br&gt;&lt;br&gt;While scrubbing training, a coarse 8-sample predictive is shown and the boundaries are hidden.">?</span></h2>
+        <canvas id="xcv" height="420"></canvas>
+        <div class="legend">
+          <span class="seg" id="shade" style="display:inline-flex"><button data-v="pred" class="on">p(y=1|x)</button><button data-v="mi">epistemic uncertainty</button></span>
+          <label><input type="checkbox" data-layer="bsamples"><span class="sw dash" style="border-color:var(--text-primary)"></span>sampled boundaries</label>
+          <label><input type="checkbox" data-layer="bmean"><span class="sw" style="border-color:var(--text-primary)"></span>mean boundary</label>
+          <button id="wide" title="Toggle between notebook 2's view and the full stored grid">wide view</button>
+          <span id="pinleg" style="display:none"><span class="sw dash" style="border-color:var(--pin)"></span> pinned</span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Loss along the posterior<span class="qi" tabindex="0" data-tip="Top: training loss on the line from the mean network through 4 random posterior samples (±1 is the sample itself, ±2 twice as far), next to the losses of 48 samples, on a log scale.&lt;br&gt;&lt;br&gt;Bottom: the change in training loss, relative to the mean network, along the single eigendirections with the largest and smallest posterior variance, ±3 standard deviations. One direction on its own moves the loss by about 1%; a sample’s loss rises because it moves along all of them at once.">?</span></h2>
+        <canvas id="lcv" height="260"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Per-layer posterior covariance<span class="qi" tabindex="0" data-tip="For each weight matrix, the posterior covariance between 40 strided entries (as in notebook 2). EVON’s covariance is Kronecker-structured within a layer and zero across layers; IVON’s is diagonal. Symmetric-log colour scale per panel over three decades below its maximum (as notebook 2): blue positive, red negative.&lt;br&gt;&lt;br&gt;Correlation view divides by the standard deviations, so off-diagonal structure is comparable across layers.">?</span></h2>
+      <div class="axsel" style="margin:4px 0 0">
+        <span>show</span><select id="covsrc"></select>
+        <span class="seg" id="covmode" style="display:inline-flex"><button data-v="cov" class="on">covariance</button><button data-v="corr">correlation</button></span>
+      </div>
+      <div class="covgrid" id="covgrid"></div>
+    </div>
+
+    <div class="row2">
+      <div class="card">
+        <h2>Curvature spectrum per layer<span class="qi" tabindex="0" data-tip="EVON’s learned curvature h for every eigendirection of each weight matrix, sorted. A direction’s posterior variance is 1 / (ess · (h + wd)), so directions below the dashed weight-decay line are bounded by the prior, not the data. The dotted line is hess_init. Values ≤ 0 (the Price estimator can go negative) sit on the bottom edge; wd keeps h + wd positive.">?</span></h2>
+        <canvas id="hcv2" height="260"></canvas>
+        <div class="legend" id="layerleg"></div>
+      </div>
+      <div class="card">
+        <h2>Training curves<span class="qi" tabindex="0" data-tip="This run (coloured) and the pinned run (gray). Test NLL and uncertainty far from the data use 8 posterior samples per checkpoint. The posterior std and prior-bound share are per weight matrix. Log step axis; click or drag to scrub.">?</span></h2>
+        <canvas id="ccv" height="260"></canvas>
+      </div>
+    </div>
+
+    <div class="sect"><h3>Whole sweep</h3><p>all 5184 runs, compared on one metric</p></div>
+    <div class="card">
+      <h2>Which hyperparameters matter?<span class="qi" tabindex="0" data-tip="Gray dots: every run; bars: medians. The blue line goes through this run and changes only that panel’s hyperparameter. Click a dot to load it.">?</span></h2>
+      <div class="axsel" style="margin-top:6px">
+        <span>metric</span><select class="metricsel"></select>
+        <span class="kbd" id="metricdir"></span>
+      </div>
+      <canvas id="scv" height="230"></canvas>
+    </div>
+
+    <div class="overview">
+      <div class="card">
+        <h2>Landscape of all 5184 runs<span class="qi" tabindex="0" data-tip="Two hyperparameters against each other; the others are held at their current values. Click a cell to jump to it.">?</span></h2>
+        <div class="axsel">
+          <span>rows</span><select id="ay"></select>
+          <span>cols</span><select id="ax"></select>
+          <span>metric</span><select class="metricsel"></select>
+          <span>color</span><select id="hscale"><option value="slice">stretch to this slice</option><option value="all">whole sweep</option></select>
+        </div>
+        <canvas id="hcv" height="300"></canvas>
+        <div class="legend" id="hleg"></div>
+      </div>
+      <div class="card">
+        <h2>Best runs<span class="qi" tabindex="0" data-tip="Ranked by the selected metric, within the current whitening and precondition_frequency setting, among runs that fit the data (test accuracy ≥ 99%): a network that has not learned the moons is uncertain everywhere and can still score a perfect far-from-data AUROC. The best / worst buttons use the same filter. Click a row to load it.">?</span></h2>
+        <table><thead><tr><th>#</th><th>lr</th><th>wd</th><th>h₀</th><th>ess</th><th>β₂</th><th id="bestcol"></th></tr></thead><tbody id="best"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="tip"></div>
+
+<script>
+const D = /*__DATA__*/null;
+const KEYS = D.keys, G = D.grid, NC = D.steps.length, STEPS = D.steps[NC - 1];
+const LABEL = {whiten_prec_grad: 'whiten_prec_grad', lr_mult: 'lr', weight_decay: 'weight_decay (prior)', hess_init: 'hess_init (h₀)', ess: 'ess',
+  beta2: 'β₂ (Hessian EMA)', beta1: 'β₁ (momentum)', precondition_frequency: 'precondition_frequency', beta3: 'β₃ (Kronecker-factor EMA)'};
+const SHORT = {whiten_prec_grad: 'whiten', lr_mult: 'lr', weight_decay: 'wd', hess_init: 'h₀', ess: 'ess', beta2: 'β₂', beta1: 'β₁', precondition_frequency: 'freq', beta3: 'β₃'};
+const WHY = {
+  whiten_prec_grad: 'Newton–Schulz whitening of each layer’s update. On: every step has a fixed size, so lr is a step length (base 1e-2). Off: a Newton-like step m / (h + wd) scaled by lr (base 1e-3, as in notebook 2).',
+  lr_mult: 'Learning rate as a multiple of the base for the current whitening mode (1e-2 whitened, 1e-3 not), decayed to 0 by a cosine schedule.',
+  weight_decay: 'The prior: precision ess · wd per weight. It also floors the curvature, so every direction whose learned h is below wd has variance ≈ 1 / (ess · wd), set by the prior. And it keeps h + wd positive when the Price estimator dips below 0; too small a wd lets that blow up.',
+  hess_init: 'Starting curvature h. Posterior variance is 1 / (ess · (h + wd)), so a small h₀ starts wide; with a slow β₂ the curvature barely leaves h₀.',
+  ess: 'Effective sample size: scales every posterior variance by 1/ess. Larger = narrower posterior, closer to a point estimate.',
+  beta2: 'EMA of the Price Hessian estimate. Memory ≈ 1/(1−β₂) steps: 1000 at 0.999 (h tracks the data), 10000 at 0.9999 (longer than training, so h stays near h₀).',
+  beta1: 'Momentum on the eigenspace gradient.',
+  precondition_frequency: 'How often (in steps) the Shampoo eigenbasis is recomputed. 10 is notebook 2’s choice; 1 tracks the basis every step at roughly 1.5× the cost.',
+  beta3: 'shampoo_beta: EMA rate of the Kronecker factors whose eigenvectors are EVON’s basis. Tied = β₂.',
+};
+const METRICS = {
+  auroc: {name: 'far-from-data detection (AUROC)', better: 'high', log: false, tip: 'How well the epistemic uncertainty separates inputs far from the data from held-out test inputs: 0.5 = no better than chance, 1 = perfect.'},
+  test_nll: {name: 'test NLL', better: 'low', log: true, tip: 'Negative log-likelihood of 1000 fresh moons under the posterior predictive.'},
+  ece: {name: 'calibration error (ECE)', better: 'low', log: true, tip: 'Expected calibration error on fresh moons, 10 bins.'},
+  mi_far: {name: 'uncertainty far from the data', better: 'high', log: false, tip: 'Mean mutual information (epistemic uncertainty, nats, max ln 2) on a ring of inputs well outside the moons.'},
+  mi_test: {name: 'uncertainty on test data', better: 'low', log: true, tip: 'Mean mutual information on fresh moons, where the model should be sure.'},
+  sample_gap: {name: 'sample loss − mean loss', better: 'low', log: true, tip: 'How much worse posterior samples fit the training data than the mean network.'},
+  below: {name: 'prior-bound share (hidden layers)', better: null, log: false, tip: 'Share of hidden-layer eigendirections whose learned curvature is below wd, i.e. whose variance the prior sets. Descriptive, not better or worse.'},
+};
+const MKEYS = Object.keys(METRICS);
+const fmtLr = (w, m) => { const v = m * D.base_lr[w ? 'true' : 'false']; return v < 0.01 ? v.toExponential(0) : String(+v.toPrecision(2)); };
+const fmt = (k, v, sel) => typeof v === 'boolean' ? (v ? 'on' : 'off')
+  : k === 'beta3' && v === -1 ? 'tied'
+  : k === 'lr_mult' ? `×${v}`
+  : k === 'ess' ? v.toExponential(0).replace('+', '')
+  : (v < 0.01 ? v.toExponential(0).replace('-0', '-') : String(v));
+const fnum = (v, d = 3) => v == null || !isFinite(v) ? '—' : Math.abs(v) >= 1e4 || (Math.abs(v) < 1e-3 && v !== 0) ? v.toExponential(2) : v.toFixed(Math.abs(v) >= 100 ? Math.min(d, 1) : d);
+
+// ------------------------------------------------------------------ data decoding
+const bytes = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const f32 = s => new Float32Array(bytes(s).buffer);
+const i16 = s => new Int16Array(bytes(s).buffer);
+const i8 = s => new Int8Array(bytes(s).buffer);
+function decodeFinal(f) {
+  if (!f || f._dec) return f;
+  const lines = (lens, flat) => { let o = 0; return lens.map(n => { const pts = []; for (let i = 0; i < n; i++, o += 2) pts.push([flat[o] / 1000, flat[o + 1] / 1000]); return pts; }); };
+  const bc = i16(f.bc); let o = 0;
+  const samples = f.bl.map(ls => ls.map(n => { const pts = []; for (let i = 0; i < n; i++, o += 2) pts.push([bc[o] / 1000, bc[o + 1] / 1000]); return pts; }));
+  const cv = i8(f.cv), covs = []; let off = 0;
+  f.cn.forEach((n, li) => {
+    const vmax = f.vm[li], M = new Float64Array(n * n);
+    for (let j = 0; j < n * n; j++) { const q = cv[off + j]; M[j] = q === 0 ? 0 : Math.sign(q) * vmax * Math.pow(10, D.cov_decades * (Math.abs(q) / 127 - 1)); }
+    covs.push({n, M, vmax}); off += n * n;
+  });
+  const hs = f32(f.h), nl = hs.length / 5;
+  return Object.assign(f, {_dec: true, pbar: bytes(f.p), mig: bytes(f.m), samples, mean: lines(f.ml, i16(f.mc)), covs,
+    spec: [0, 1, 2, 3, 4].map(l => Array.from(hs.slice(l * nl, (l + 1) * nl))), snll: Array.from(f32(f.sn)),
+    slices: Object.fromEntries(Object.entries(f.sl).map(([k, v]) => [k, {...v, loss: Array.from(f32(v.loss))}])),
+    paths: f.pa ? (a => Array.from({length: a.length / 17}, (_, k) => Array.from(a.slice(k * 17, (k + 1) * 17))))(f32(f.pa)) : null});
+}
+// per-run summary for the whole sweep; heavy payloads arrive per shard
+D.runs = D.summary.d.map((d, i) => { const r = {d}; for (const k of MKEYS.concat(['test_acc', 'neg'])) r[k] = D.summary[k][i]; return r; });
+window.__nnshard = (k, sh) => sh.idx.forEach((i, j) => {
+  const p = sh.runs[j], r = D.runs[i], c = f32(p.c), n = p.n;
+  r.curves = {n, train: [], nll: [], mif: [], sd: [], below: []};
+  for (let t = 0; t < n; t++) {
+    const row = c.subarray(t * 13, t * 13 + 13);
+    r.curves.train.push(row[0]); r.curves.nll.push(row[1]); r.curves.mif.push(row[2]);
+    r.curves.sd.push(Array.from(row.subarray(3, 8))); r.curves.below.push(Array.from(row.subarray(8, 13)));
+  }
+  r.snaps = bytes(p.s); r.nsnaps = p.sh; r.f = p.f || null; r.loaded = true;
+});
+const shardLoads = {};
+const loadShard = k => shardLoads[k] ||= new Promise((res, rej) => {
+  const el = document.createElement('script'); el.src = `nn_data/shard${k}.js`;
+  el.onload = res; el.onerror = () => { delete shardLoads[k]; rej(new Error(`nn_data/shard${k}.js`)); };
+  document.head.appendChild(el);
+});
+const REFS = {ivon_iso: 'IVON, isotropic (nb 2)', ivon_diag: 'IVON, learned diagonal (nb 2)'};
+for (const k in D.refs) decodeFinal(D.refs[k].f);
+
+// ------------------------------------------------------------------ state
+const state = {sel: {}, t: NC - 1, pin: null, metric: 'auroc', wide: false, shade: 'pred', covsrc: 'run', covmode: 'cov',
+  layers: {bsamples: 1, bmean: 1}};
+const idxOf = sel => KEYS.reduce((a, k) => a * G[k].length + sel[k], 0);
+const selOf = idx => { const s = {}; for (let j = KEYS.length - 1; j >= 0; j--) { const k = KEYS[j], n = G[k].length; s[k] = idx % n; idx = Math.floor(idx / n); } return s; };
+state.sel = selOf(D.nb);
+if (D.runs[D.nb].d === -1) {
+  // preview: notebook 2's run is not finished yet, so open on the finished run closest to it
+  const nb = selOf(D.nb); let best = null;
+  D.runs.forEach((r, i) => { if (r.d !== 0) return; const s = selOf(i), d = KEYS.reduce((a, k) => a + (s[k] !== nb[k]), 0); if (!best || d < best[0]) best = [d, i]; });
+  if (best) state.sel = selOf(best[1]);
+}
+const loadHash = () => {
+  const h = location.hash.slice(1); if (!h) return;
+  for (const kv of h.split('&')) { const [k, v] = kv.split('='); if (k in state.sel && +v >= 0 && +v < G[k].length) state.sel[k] = +v; if (k === 'pin' && v !== '' && D.runs[+v]) state.pin = +v; }
+};
+loadHash();
+const val = k => G[k][state.sel[k]];
+const cur = () => idxOf(state.sel);
+const run = () => D.runs[cur()];
+const shardOf = i => Math.floor(i / D.per_shard);
+const missing = () => [cur(), state.pin].filter(i => i != null && !D.runs[i].loaded && D.runs[i].d !== -1);
+let loadError = null;
+const cfgText = idx => { const s = selOf(idx); return KEYS.map(k => `${SHORT[k]} ${k === 'lr_mult' ? fmtLr(G.whiten_prec_grad[s.whiten_prec_grad], G.lr_mult[s.lr_mult]) : fmt(k, G[k][s[k]])}`).join(' · '); };
+
+// ------------------------------------------------------------------ canvas + misc helpers
+const css = n => getComputedStyle(document.body).getPropertyValue(n).trim();
+const FONT = '11px ui-sans-serif, system-ui, sans-serif';
+const narrow = w => w < 640;
+const stripRows = w => w < 520 ? [['lr_mult', 'whiten_prec_grad'], ['weight_decay', 'beta1'], ['hess_init', 'precondition_frequency'], ['ess', 'beta3'], ['beta2']]
+  : w < 1300 ? [KEYS.slice(0, 5), KEYS.slice(5)] : [KEYS];
+const HEIGHT = {
+  xcv: w => Math.round(Math.max(260, Math.min(560, w * 0.7))),
+  // match the predictions card next to it: its plot plus its control row (children only, so the
+  // stretched grid row height never feeds back into this)
+  lcv: w => { const x = document.getElementById('xcv'), leg = x.parentElement.querySelector('.legend');
+    return innerWidth <= 1250 ? 380 : Math.max(380, Math.round(HEIGHT.xcv(x.clientWidth) + leg.offsetHeight + 6)); },
+  // side by side, fill the training-curves card next to it (minus the layer legend below the plot)
+  hcv2: w => { const c = document.getElementById('ccv'), leg = document.getElementById('layerleg');
+    return innerWidth <= 1250 ? (narrow(w) ? 230 : 260) : Math.max(260, HEIGHT.ccv(c.clientWidth) - leg.offsetHeight - 6); },
+  ccv: w => (w < 520 ? 3 : 2) * (narrow(w) ? 130 : 130),
+  scv: w => stripRows(w).length * (narrow(w) ? 190 : 230),
+  // side by side, fill the best-runs card next to it (children only, as for lcv)
+  hcv: w => { const b = document.getElementById('best').closest('.card'), c = document.getElementById('hcv').closest('.card');
+    const other = [...c.children].filter(e => e.tagName !== 'CANVAS').reduce((a, e) => a + e.offsetHeight, 0) + 12;
+    const target = [...b.children].reduce((a, e) => a + e.offsetHeight, 0) - other;
+    return innerWidth <= 1250 ? (narrow(w) ? 240 : 300) : Math.max(200, target); },
+};
+function setupCanvas(cv, hOverride) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = hOverride || HEIGHT[cv.id](w);
+  cv.style.height = h + 'px';
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+  return {ctx, w, h};
+}
+function niceTicks(lo, hi, n = 6) {
+  const span = hi - lo, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 5, 10].map(s => s * mag).find(s => s >= step0);
+  // tolerance and rounding relative to the step, so tiny scales (1e-12) keep their ticks
+  const out = []; for (let k = Math.ceil(lo / step - 1e-9); k * step <= hi + step * 1e-9; k++) out.push(+(k * step).toPrecision(12));
+  return out;
+}
+const dotAt = (ctx, x, y, r, fill, ring) => { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = fill; ctx.fill(); if (ring) { ctx.strokeStyle = ring; ctx.lineWidth = 2; ctx.stroke(); } };
+const hex2rgb = h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+// in-plot label on a semi-transparent surface-coloured box, so it stays readable over curves; uses the current font/align/baseline/fill
+function boxText(ctx, text, x, y) {
+  const tm = ctx.measureText(text), pad = 2, tw = tm.width;
+  const asc = tm.fontBoundingBoxAscent ?? tm.actualBoundingBoxAscent, desc = tm.fontBoundingBoxDescent ?? tm.actualBoundingBoxDescent;
+  const left = ctx.textAlign === 'right' || ctx.textAlign === 'end' ? x - tw : ctx.textAlign === 'center' ? x - tw / 2 : x;
+  const fill = ctx.fillStyle;
+  ctx.fillStyle = `rgba(${hex2rgb(css('--surface-1')).join(',')},.78)`;
+  ctx.fillRect(left - pad, y - asc - pad, tw + 2 * pad, asc + desc + 2 * pad);
+  ctx.fillStyle = fill; ctx.fillText(text, x, y);
+}
+const SEQ = () => [1, 2, 3, 4, 5].map(i => css('--seq-' + i));
+function ramp(seq, t) {
+  const x = Math.max(0, Math.min(1, t)) * (seq.length - 1), k = Math.min(Math.floor(x), seq.length - 2), f = x - k;
+  const a = hex2rgb(seq[k]), b = hex2rgb(seq[k + 1]);
+  return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * f).toString(16).padStart(2, '0')).join('');
+}
+const LCOL = () => [1, 2, 3, 4, 5].map(i => css('--l' + i));
+const themeKey = () => css('--surface-1');
+const tip = document.getElementById('tip');
+const showTip = (e, html) => { tip.classList.remove('wrap'); tip.innerHTML = html; tip.style.display = 'block'; tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 12) + 'px'; };
+const hideTip = () => { tip.style.display = 'none'; tip.classList.remove('wrap'); };
+const qi = t => `<span class="qi" tabindex="0" data-tip="${t.replace(/"/g, '&quot;')}">?</span>`;
+function showQi(el) {
+  tip.innerHTML = el.dataset.tip; tip.classList.add('wrap'); tip.style.display = 'block';
+  const r = el.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = Math.max(8, Math.min(r.left - 12, innerWidth - tw - 8)) + 'px';
+  tip.style.top = (r.bottom + 6 + th > innerHeight ? r.top - th - 6 : r.bottom + 6) + 'px';
+}
+document.addEventListener('mouseover', e => { const el = e.target.closest('.qi'); if (el) showQi(el); });
+document.addEventListener('mouseout', e => { if (e.target.closest('.qi')) hideTip(); });
+document.addEventListener('focusin', e => { const el = e.target.closest('.qi'); if (el) showQi(el); });
+document.addEventListener('focusout', e => { if (e.target.closest('.qi')) hideTip(); });
+document.addEventListener('click', e => { if (e.target.closest('.qi')) e.preventDefault(); });
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+// crossfade: keep a snapshot of the old frame and fade it out over the new one
+const fades = {};
+function withFade(cv, draw, animate) {
+  if (!animate || reduceMotion.matches || !cv.width) { delete fades[cv.id]; draw(); return; }
+  const snap = document.createElement('canvas'); snap.width = cv.width; snap.height = cv.height; snap.getContext('2d').drawImage(cv, 0, 0);
+  fades[cv.id] = {snap, t0: performance.now(), draw};
+  const tick = () => {
+    const F = fades[cv.id]; if (!F) return;
+    const u = Math.min(1, (performance.now() - F.t0) / 380);
+    F.draw();
+    if (u < 1) { const ctx = cv.getContext('2d'); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = Math.pow(1 - u, 2); ctx.drawImage(F.snap, 0, 0, cv.width, cv.height); ctx.restore(); requestAnimationFrame(tick); }
+    else delete fades[cv.id];
+  };
+  tick();
+}
+
+// ------------------------------------------------------------------ feature space
+const NBVIEW = {x0: -2, x1: 3, y0: -1.5, y1: 2}, WIDE = {x0: D.gx[0], x1: D.gx[1], y0: D.gy[0], y1: D.gy[1]};
+let xview = {...NBVIEW};
+function frame(w, h, view, m = {l: 40, r: 8, t: 8, b: 32}) {
+  const aw = w - m.l - m.r, ah = h - m.t - m.b, vx = view.x1 - view.x0, vy = view.y1 - view.y0, sc = Math.min(aw / vx, ah / vy);
+  const pw = vx * sc, ph = vy * sc, x0 = m.l + (aw - pw) / 2, y0 = m.t + (ah - ph) / 2;
+  return {x0, y0, w: pw, h: ph, sc, sx: x => x0 + (x - view.x0) * sc, sy: y => y0 + ph - (y - view.y0) * sc, ix: px => view.x0 + (px - x0) / sc, iy: py => view.y0 + (y0 + ph - py) / sc};
+}
+function gridImage(vals, nx, ny, mode) {
+  // vals: Uint8 row-major with row 0 = lowest y; mode 'pred' (diverging) or 'mi' (sequential)
+  const c = document.createElement('canvas'); c.width = nx; c.height = ny;
+  const cx = c.getContext('2d'), im = cx.createImageData(nx, ny);
+  const neg = css('--div-neg').split(',').map(Number), pos = css('--div-pos').split(',').map(Number), seq = SEQ().map(hex2rgb);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const v = vals[j * nx + i] / 255, o = ((ny - 1 - j) * nx + i) * 4;
+    if (mode === 'pred') { const col = v >= .5 ? pos : neg, s = Math.abs(v - .5) * 2; im.data.set([col[0], col[1], col[2], Math.round(s * 0.32 * 255)], o); }
+    else { const x = Math.min(1, v * 2.2) * (seq.length - 1), k = Math.min(Math.floor(x), seq.length - 2), f = x - k; const a = seq[k], b = seq[k + 1]; im.data.set([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f, Math.round(Math.min(1, v * 6) * 230)], o); }
+  }
+  cx.putImageData(im, 0, 0);
+  return c;
+}
+const imgCache = new Map();
+const cachedGrid = (key, vals, nx, ny, mode) => { const k = key + '|' + mode + '|' + themeKey(); if (!imgCache.has(k)) { if (imgCache.size > 64) imgCache.clear(); imgCache.set(k, gridImage(vals, nx, ny, mode)); } return imgCache.get(k); };
+function drawX() {
+  const cv = document.getElementById('xcv');
+  const {ctx, w, h} = setupCanvas(cv);
+  const P = frame(w, h, xview); cv._P = P;
+  const r = run(), final = state.t >= NC - 1, f = r.f && decodeFinal(r.f);
+  ctx.fillStyle = css('--surface-1'); ctx.fillRect(P.x0, P.y0, P.w, P.h);
+  ctx.save(); ctx.beginPath(); ctx.rect(P.x0, P.y0, P.w, P.h); ctx.clip();
+  // stored grid covers WIDE; place it in view coordinates
+  const gx0 = P.sx(D.gx[0]), gy1 = P.sy(D.gy[1]), gw = P.sx(D.gx[1]) - gx0, gh = P.sy(D.gy[0]) - gy1;
+  ctx.imageSmoothingEnabled = true;
+  if (final && f) {
+    const vals = state.shade === 'pred' ? f.pbar : f.mig;
+    ctx.drawImage(cachedGrid(cur() + 'f', vals, D.fine[0], D.fine[1], state.shade), gx0, gy1, gw, gh);
+  } else if (r.snaps && state.shade === 'pred') {
+    // nearest stored snapshot at or before this step
+    let j = 0; D.snap_steps.forEach((s, k) => { if (s <= D.steps[state.t] && k < r.nsnaps) j = k; });
+    const n = D.coarse[0] * D.coarse[1];
+    ctx.drawImage(cachedGrid(cur() + 's' + j, r.snaps.subarray(j * n, (j + 1) * n), D.coarse[0], D.coarse[1], 'pred'), gx0, gy1, gw, gh);
+  }
+  const line = pts => { ctx.beginPath(); pts.forEach(([a, b], i) => i ? ctx.lineTo(P.sx(a), P.sy(b)) : ctx.moveTo(P.sx(a), P.sy(b))); ctx.stroke(); };
+  if (final && f) {
+    if (state.layers.bsamples) { ctx.strokeStyle = css('--text-primary'); ctx.globalAlpha = .28; ctx.lineWidth = .8; ctx.setLineDash([5, 4]); f.samples.forEach(ls => ls.forEach(line)); ctx.setLineDash([]); ctx.globalAlpha = 1; }
+    if (state.layers.bmean) { ctx.strokeStyle = css('--text-primary'); ctx.lineWidth = 2; f.mean.forEach(line); }
+    if (state.pin != null && D.runs[state.pin].f) { const pf = decodeFinal(D.runs[state.pin].f); ctx.strokeStyle = css('--pin'); ctx.lineWidth = 2; ctx.setLineDash([7, 4]); pf.mean.forEach(line); ctx.setLineDash([]); }
+  }
+  const X = D.train.X, Y = D.train.y, surf = css('--surface-1'), c0 = css('--cls0'), c1 = css('--cls1');
+  ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 3; ctx.shadowOffsetY = 1;
+  for (let i = 0; i < X.length; i++) {
+    const px = P.sx(X[i][0]), py = P.sy(X[i][1]); ctx.lineWidth = 1; ctx.strokeStyle = surf;
+    if (Y[i] === 0) { ctx.fillStyle = c0; ctx.beginPath(); ctx.roundRect(px - 3.2, py - 3.2, 6.4, 6.4, 1.2); ctx.fill(); ctx.stroke(); }
+    else { ctx.fillStyle = c1; ctx.beginPath(); ctx.arc(px, py, 3.5, 0, 7); ctx.fill(); ctx.stroke(); }
+  }
+  ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.font = '12px ui-sans-serif, system-ui'; ctx.fillStyle = css('--text-primary'); ctx.textAlign = 'center';
+  if (r.d > 0) ctx.fillText(`run diverged at step ${r.d.toLocaleString()}`, P.x0 + P.w / 2, P.y0 + 20);
+  else if (!final && state.shade === 'mi') ctx.fillText('epistemic map is stored for the final step only', P.x0 + P.w / 2, P.y0 + 20);
+  ctx.restore();
+  // axes
+  ctx.font = FONT; ctx.fillStyle = css('--text-muted'); ctx.strokeStyle = css('--border'); ctx.lineWidth = 1; ctx.strokeRect(P.x0 + .5, P.y0 + .5, P.w, P.h);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top'; for (const t of niceTicks(xview.x0, xview.x1)) ctx.fillText(t, P.sx(t), P.y0 + P.h + 4);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; for (const t of niceTicks(xview.y0, xview.y1)) ctx.fillText(t, P.x0 - 5, P.sy(t));
+}
+
+// ------------------------------------------------------------------ loss along the posterior
+function lossAxes(ctx, x0, x1, y0, y1, lo, hi, xticks, title) {
+  ctx.strokeStyle = css('--grid'); ctx.fillStyle = css('--text-muted'); ctx.lineWidth = 1; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  const sy = t => y1 - (t - lo) / (hi - lo) * (y1 - y0), step = Math.max(1, Math.round((hi - lo) / 4));
+  for (let t = Math.ceil(lo); t <= hi; t += step) { ctx.beginPath(); ctx.moveTo(x0, sy(t)); ctx.lineTo(x1, sy(t)); ctx.stroke(); ctx.fillText('1e' + t, x0 - 4, sy(t)); }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (const [x, lab] of xticks) { ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke(); ctx.fillText(lab, x, y1 + 4); }
+  ctx.fillStyle = css('--text-secondary'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(title, x0, y0 - 3);
+}
+function drawL() {
+  const cv = document.getElementById('lcv');
+  const {ctx, w, h} = setupCanvas(cv);
+  const r = run(), f = r.f && decodeFinal(r.f);
+  ctx.font = FONT;
+  if (!f) { ctx.fillStyle = css('--text-muted'); ctx.textAlign = 'center'; ctx.fillText(r.d > 0 ? 'run diverged' : '—', w / 2, h / 2); return; }
+  const L = v => Math.log10(Math.max(v, 1e-12));
+  const paths = f.paths || [], mid = paths.length ? paths[0][Math.floor(paths[0].length / 2)] : f.slices.max.loss[12];
+  const curve = (arr, sx, sy, col, lw) => { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); arr.forEach((v, i) => { const x = sx(i / (arr.length - 1)), y = sy(L(v)); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); };
+  const m = {l: 44, r: 8}, x0 = m.l, split = w * .74, x1 = split - 10, half = h / 2;
+  // --- top: along random posterior samples (t = +-1 is a sample), with the 48 sample losses on the right
+  {
+    const vals = [...paths.flat(), ...f.snll].map(L), lo = Math.floor(Math.min(...vals)), hi = Math.ceil(Math.max(...vals)) + .2;
+    const y0 = 18, y1 = half - 24, sy = t => y1 - (t - lo) / (hi - lo) * (y1 - y0), sx = u => x0 + u * (x1 - x0);
+    lossAxes(ctx, x0, w - m.r, y0, y1, lo, hi, [[sx(0), '−2'], [sx(.25), '−1 · sample'], [sx(.5), 'mean'], [sx(.75), '+1 · sample'], [sx(1), '+2']], 'train loss along random posterior samples');
+    paths.forEach((p, k) => curve(p, sx, sy, css('--evon'), 1.6));
+    const sx0 = split + 6, sx1 = w - m.r - 4, cx = (sx0 + sx1) / 2;
+    ctx.fillStyle = css('--text-secondary'); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('48 samples', cx, y1 + 4);
+    f.snll.forEach((v, i) => { const jit = (Math.sin(i * 12.9898) * 43758.5453 % 1) * (sx1 - sx0) * .4; ctx.globalAlpha = .7; dotAt(ctx, cx + jit, sy(L(v)), 2.6, css('--evon')); });
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = css('--text-primary'); ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(x0, sy(L(mid))); ctx.lineTo(w - m.r, sy(L(mid))); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = css('--text-primary'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; boxText(ctx, 'mean network', x0 + 4, sy(L(mid)) - 2);
+  }
+  // --- bottom: along the single largest- and smallest-variance eigendirections, +-3 sigma.
+  // A single direction moves the loss by ~1%, invisible on a log axis spanning decades, so plot the
+  // change relative to the mean network on a linear axis (absolute change when the mean's loss is 0).
+  {
+    const c0 = f.slices.max.loss[(f.slices.max.loss.length - 1) >> 1], rel = c0 > 0;
+    const dl = arr => arr.map(v => rel ? (v / c0 - 1) * 100 : v - c0);
+    const dmax = dl(f.slices.max.loss), dmin = dl(f.slices.min.loss), all = [...dmax, ...dmin, 0];
+    // a floor on the span so numerically flat slices stay flat instead of magnifying noise
+    let lo = Math.min(...all), hi = Math.max(...all); const span = Math.max(hi - lo, rel ? 0.1 : 1e-12), pad = span * .08;
+    if (hi - lo < span) { const c = (hi + lo) / 2; lo = c - span / 2; hi = c + span / 2; }
+    lo -= pad; hi += pad;
+    const y0 = half + 18, y1 = h - 24, sy = v => y1 - (v - lo) / (hi - lo) * (y1 - y0), sx = u => x0 + u * (w - m.r - x0);
+    const ticks = niceTicks(lo, hi, 4).filter(t => t >= lo && t <= hi), step = ticks.length > 1 ? ticks[1] - ticks[0] : 1;
+    const dec = rel ? Math.max(0, Math.min(3, -Math.floor(Math.log10(step)))) : 0;
+    const fv = v => rel ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(dec)}%` : (v === 0 ? '0' : (v > 0 ? '+' : '−') + Math.abs(v).toExponential(0));
+    ctx.strokeStyle = css('--grid'); ctx.fillStyle = css('--text-muted'); ctx.lineWidth = 1; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (const t of ticks) { ctx.beginPath(); ctx.moveTo(x0, sy(t)); ctx.lineTo(w - m.r, sy(t)); ctx.stroke(); ctx.fillText(fv(t), x0 - 4, sy(t)); }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    for (const t of [-3, -2, -1, 0, 1, 2, 3]) { const x = sx((t + 3) / 6); ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke(); ctx.fillText(t === 0 ? 'mean' : `${t > 0 ? '+' : '−'}${Math.abs(t)}σ`, x, y1 + 4); }
+    ctx.fillStyle = css('--text-secondary'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText(rel ? 'change in train loss along single eigendirections' : 'absolute change in train loss (exactly 0 at the mean)', x0, y0 - 3);
+    // the mean network's loss is the zero line
+    ctx.strokeStyle = css('--text-primary'); ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(x0, sy(0)); ctx.lineTo(w - m.r, sy(0)); ctx.stroke(); ctx.setLineDash([]);
+    const lin = (arr, col) => { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.lineJoin = ctx.lineCap = 'round'; ctx.beginPath(); arr.forEach((v, i) => { const x = sx(i / (arr.length - 1)), y = sy(v); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); };
+    lin(dmax, css('--evon')); lin(dmin, css('--exact'));
+    // direct labels inside the plot's top-right corner, one per line: which direction, and how far the loss moved at the edge
+    const edge = d => fv(Math.max(d[0], d[d.length - 1]));
+    ctx.font = FONT; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillStyle = css('--text-secondary');
+    [[css('--evon'), `largest variance (σ ${fnum(f.slices.max.sd, 3)}, W${f.slices.max.layer + 1}): ${edge(dmax)} at 3σ`], [css('--exact'), `smallest variance (σ ${fnum(f.slices.min.sd, 4)}, W${f.slices.min.layer + 1}): ${edge(dmin)} at 3σ`]].forEach(([col, t], k) => {
+      const x = w - m.r - 4, y = y0 + 4 + k * 16, tw = ctx.measureText(t).width;
+      boxText(ctx, t, x, y);
+      ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - tw - 22, y + 6); ctx.lineTo(x - tw - 6, y + 6); ctx.stroke();
+    });
+  }
+
+}
+
+// ------------------------------------------------------------------ per-layer covariance
+function covSource() {
+  if (state.covsrc === 'run') return run().f ? decodeFinal(run().f) : null;
+  if (state.covsrc === 'pin') return state.pin != null && D.runs[state.pin].f ? decodeFinal(D.runs[state.pin].f) : null;
+  return D.refs[state.covsrc].f;
+}
+function buildCovGrid() {
+  const root = document.getElementById('covgrid'); root.innerHTML = '';
+  for (let l = 0; l < 5; l++) root.insertAdjacentHTML('beforeend', `<figure><figcaption><b>W${l + 1}</b><span id="covcap${l}"></span></figcaption><canvas id="cov${l}"></canvas></figure>`);
+}
+function drawCov(animate) {
+  const f = covSource();
+  const opts = [['run', 'this run'], ...(state.pin != null ? [['pin', 'pinned run']] : []), ...Object.entries(REFS)];
+  const sel = document.getElementById('covsrc');
+  if (sel.options.length !== opts.length) sel.innerHTML = opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+  if (!opts.some(([v]) => v === state.covsrc)) state.covsrc = 'run';
+  sel.value = state.covsrc;
+  const neg = css('--div-neg').split(',').map(Number), pos = css('--div-pos').split(',').map(Number), surf = hex2rgb(css('--surface-1'));
+  for (let l = 0; l < 5; l++) {
+    const cv = document.getElementById('cov' + l), w = cv.clientWidth;
+    withFade(cv, () => {
+      const {ctx} = setupCanvas(cv, w);
+      if (!f) { ctx.fillStyle = css('--text-muted'); ctx.font = FONT; ctx.textAlign = 'center'; ctx.fillText('—', w / 2, w / 2); document.getElementById('covcap' + l).textContent = ''; return; }
+      const {n, M} = f.covs[l];
+      const c = document.createElement('canvas'); c.width = n; c.height = n;
+      const cx = c.getContext('2d'), im = cx.createImageData(n, n);
+      let vmax = 0; const V = new Float64Array(n * n);
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+        let v = M[i * n + j];
+        if (state.covmode === 'corr') v = v / Math.sqrt(Math.abs(M[i * n + i] * M[j * n + j]) || 1);
+        V[i * n + j] = v; vmax = Math.max(vmax, Math.abs(v));
+      }
+      const dec = 3;  // symmetric log over 3 decades below the panel max, as notebook 2's SymLogNorm(linthresh = vmax · 1e-3)
+      for (let k = 0; k < n * n; k++) {
+        const v = V[k], t = v === 0 || !vmax ? 0 : Math.max(0, 1 + Math.log10(Math.abs(v) / vmax) / dec), col = v >= 0 ? pos : neg;
+        im.data.set([surf[0] + (col[0] - surf[0]) * t, surf[1] + (col[1] - surf[1]) * t, surf[2] + (col[2] - surf[2]) * t, 255], k * 4);
+      }
+      cx.putImageData(im, 0, 0);
+      ctx.imageSmoothingEnabled = false; ctx.drawImage(c, 0, 0, w, w);
+      document.getElementById('covcap' + l).textContent = state.covmode === 'corr' ? '' : `max ${f.covs[l].vmax.toExponential(1)}`;
+    }, animate);
+  }
+}
+let covHover = null;
+document.getElementById('covgrid').addEventListener('mousemove', e => {
+  const cv = e.target.closest('canvas'); const f = covSource(); if (!cv || !f) { hideTip(); return; }
+  const l = +cv.id.slice(3), {n, M} = f.covs[l], b = cv.getBoundingClientRect();
+  const i = Math.floor((e.clientY - b.top) / b.height * n), j = Math.floor((e.clientX - b.left) / b.width * n);
+  if (i < 0 || j < 0 || i >= n || j >= n) return;
+  const v = M[i * n + j], c = v / Math.sqrt(Math.abs(M[i * n + i] * M[j * n + j]) || 1);
+  showTip(e, `<b>W${l + 1}</b> entries ${i}, ${j}<br><span class="m">cov</span> ${fnum(v, 3)}<br><span class="m">corr</span> ${fnum(c, 3)}`);
+});
+document.getElementById('covgrid').addEventListener('mouseleave', hideTip);
+
+// ------------------------------------------------------------------ curvature spectrum
+function drawSpec() {
+  const cv = document.getElementById('hcv2');
+  const f = run().f && decodeFinal(run().f), wd = val('weight_decay'), h0 = val('hess_init'), cols = LCOL();
+  // legend first: the canvas height depends on how many lines it wraps to
+  if (f) document.getElementById('layerleg').innerHTML = cols.map((c, l) => `<span><span class="lsw" style="background:${c}"></span> W${l + 1} <span style="color:var(--text-muted)">${f.shapes[l].join('×')}</span></span>`).join('');
+  const {ctx, w, h} = setupCanvas(cv);
+  ctx.font = FONT;
+  if (!f) { ctx.fillStyle = css('--text-muted'); ctx.textAlign = 'center'; ctx.fillText(run().d > 0 ? 'run diverged' : '—', w / 2, h / 2); return; }
+  const pos = f.spec.flat().filter(v => v > 0), lo = Math.floor(Math.log10(Math.min(wd / 10, ...pos))), hi = Math.ceil(Math.log10(Math.max(h0 * 2, ...pos)));
+  const m = {l: 46, r: 10, t: 12, b: 26}, x0 = m.l, x1 = w - m.r, y0 = m.t, y1 = h - m.b;
+  const sx = q => x0 + q * (x1 - x0), sy = v => v <= 0 ? y1 : y1 - (Math.log10(v) - lo) / (hi - lo) * (y1 - y0);
+  // prior-bound zone
+  ctx.fillStyle = css('--chip-on'); ctx.fillRect(x0, sy(wd), x1 - x0, y1 - sy(wd));
+  ctx.strokeStyle = css('--grid'); ctx.fillStyle = css('--text-muted'); ctx.lineWidth = 1; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let t = lo; t <= hi; t++) { const y = sy(Math.pow(10, t)); ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); if ((t - lo) % Math.max(1, Math.round((hi - lo) / 5)) === 0) ctx.fillText('1e' + t, x0 - 4, y); }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (const q of [0, .25, .5, .75, 1]) ctx.fillText(`${q * 100}%`, sx(q), y1 + 4);
+  ctx.fillText('eigendirections, sorted by curvature', (x0 + x1) / 2, y1 + 14);
+  ctx.setLineDash([6, 4]); ctx.strokeStyle = css('--text-primary'); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x0, sy(wd)); ctx.lineTo(x1, sy(wd)); ctx.stroke();
+  ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(x0, sy(h0)); ctx.lineTo(x1, sy(h0)); ctx.stroke(); ctx.setLineDash([]);
+  f.spec.forEach((s, l) => {
+    ctx.strokeStyle = cols[l]; ctx.lineWidth = 2; ctx.beginPath();
+    s.forEach((v, i) => { const x = sx(i / (s.length - 1)), y = sy(v); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    ctx.stroke();
+  });
+  // line labels drawn last so the spectra don't hide them
+  ctx.fillStyle = css('--text-secondary'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+  boxText(ctx, `weight decay ${fmt('weight_decay', wd)}: prior-bound below`, x0 + 4, sy(wd) - 2);
+  boxText(ctx, `hess_init ${fmt('hess_init', h0)}`, x0 + 4, sy(h0) - 2);
+}
+
+// ------------------------------------------------------------------ training curves
+const sxStep = s => Math.log10(s + 1);
+let C = null;
+function drawC() {
+  const cv = document.getElementById('ccv');
+  const {ctx, w, h} = setupCanvas(cv);
+  const r = run(), pin = state.pin != null ? D.runs[state.pin] : null, cols = LCOL();
+  if (!r.curves) return;
+  const cur1 = (c, key) => c ? c[key] : null;
+  const panels = [
+    {title: 'train loss (sampled)', log: true, lines: [[r.curves.train, css('--evon')], [cur1(pin && pin.curves, 'train'), css('--pin')]]},
+    {title: 'test NLL', log: true, lines: [[r.curves.nll, css('--evon')], [cur1(pin && pin.curves, 'nll'), css('--pin')]]},
+    {title: 'far-from-data MI', log: false, fixed: [0, Math.log(2)], lines: [[r.curves.mif, css('--evon')], [cur1(pin && pin.curves, 'mif'), css('--pin')]]},
+    {title: 'posterior std', log: true, lines: [0, 1, 2, 3, 4].map(l => [r.curves.sd.map(a => a[l]), cols[l]])},
+    {title: 'prior-bound share', log: false, fixed: [0, 1], lines: [0, 1, 2, 3, 4].map(l => [r.curves.below.map(a => a[l]), cols[l]])},
+    {title: 'lr / lr₀ (cosine)', log: false, fixed: [0, 1], lines: [[D.steps.map(s => .5 * (1 + Math.cos(Math.PI * s / STEPS))), css('--text-secondary')]]},
+  ];
+  const ncol = w < 520 ? 2 : 3, rowH = h / Math.ceil(panels.length / ncol), gap = 16, pw = (w - gap * (ncol - 1)) / ncol;
+  C = {panels: []};
+  ctx.font = FONT;
+  panels.forEach((pn, k) => {
+    const left = (k % ncol) * (pw + gap), top = Math.floor(k / ncol) * rowH, m = {l: 38, r: 8, t: 16, b: 20};
+    const x0 = left + m.l, x1 = left + pw - m.r, y0 = top + m.t, y1 = top + rowH - m.b;
+    let vals = [];
+    for (const [a] of pn.lines) if (a) for (const v of a) if (v != null && isFinite(v) && (!pn.log || v > 0)) vals.push(pn.log ? Math.log10(v) : v);
+    let lo, hi;
+    if (pn.fixed) [lo, hi] = pn.fixed; else { lo = Math.min(...vals); hi = Math.max(...vals); }
+    if (!isFinite(lo) || !isFinite(hi)) { lo = 0; hi = 1; }
+    if (hi - lo < 1e-9) { hi = lo + 1; }
+    const sx = s => x0 + (sxStep(s) - sxStep(0)) / (sxStep(STEPS) - sxStep(0)) * (x1 - x0);
+    const sy = v => y1 - ((pn.log ? Math.log10(Math.max(v, 1e-12)) : v) - lo) / (hi - lo) * (y1 - y0);
+    C.panels.push({x0, x1, y0, y1, sx, pn});
+    ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1; ctx.fillStyle = css('--text-muted'); ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    const yt = pn.log ? niceTicks(lo, hi, 3).filter(Number.isInteger).map(t => Math.pow(10, t)) : niceTicks(lo, hi, 3);
+    for (const t of yt) { const y = sy(t); if (y < y0 - 1 || y > y1 + 1) continue; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); ctx.fillText(pn.log ? (t >= 1 ? String(t) : '1e' + Math.round(Math.log10(t))) : fnum(t, 1), x0 - 4, y); }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    for (const s of [0, 10, 100, 1000, STEPS]) ctx.fillText(s >= 1000 ? (s / 1000) + 'k' : s, sx(s), y1 + 3);
+    ctx.fillStyle = css('--text-secondary'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(pn.title, x0, y0 - 3);
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, y0 - 1, x1 - x0, y1 - y0 + 2); ctx.clip();
+    for (const [a, col] of [...pn.lines].reverse()) {
+      if (!a) continue;
+      ctx.strokeStyle = col; ctx.lineWidth = col === css('--pin') ? 1.5 : 2; ctx.beginPath(); let pen = false;
+      a.forEach((v, i) => { if (v == null || !isFinite(v) || (pn.log && v <= 0)) { pen = false; return; } const x = sx(D.steps[i]), y = sy(v); pen ? ctx.lineTo(x, y) : ctx.moveTo(x, y); pen = true; });
+      ctx.stroke();
+    }
+    ctx.restore();
+    const xc = sx(D.steps[state.t]); ctx.strokeStyle = css('--text-primary'); ctx.globalAlpha = .5; ctx.beginPath(); ctx.moveTo(xc, y0); ctx.lineTo(xc, y1); ctx.stroke(); ctx.globalAlpha = 1;
+  });
+}
+function curveStepAt(e) {
+  const b = document.getElementById('ccv').getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+  const p = C.panels.find(p => x >= p.x0 - 8 && x <= p.x1 + 8 && y >= p.y0 - 18 && y <= p.y1 + 20) || C.panels[0];
+  let best = 0, bd = Infinity; D.steps.forEach((s, i) => { const d = Math.abs(p.sx(s) - x); if (d < bd) { bd = d; best = i; } });
+  return {i: best, p};
+}
+
+// ------------------------------------------------------------------ metrics helpers
+const mval = (r, met) => { const v = r[met]; return r.d !== 0 || v == null || !isFinite(v) ? null : (METRICS[met].log ? Math.max(v, 1e-5) : v); };
+const better = (met, a, b) => METRICS[met].better === 'high' ? b - a : a - b;  // sort comparator
+// rankings only consider runs that fit the data: a network that has not learned the moons is
+// uncertain everywhere and can still score a perfect far-from-data AUROC
+const FIT_ACC = 0.99, fits = r => r.d === 0 && r.test_acc != null && r.test_acc >= FIT_ACC;
+const fitVals = met => D.runs.filter(fits).map(r => mval(r, met)).filter(v => v != null).sort((a, b) => a - b);
+const sortedVals = met => D.runs.map(r => mval(r, met)).filter(v => v != null).sort((a, b) => a - b);
+const scaleOf = met => { const s = sortedVals(met), L = METRICS[met].log; const tr = v => L ? Math.log10(v) : v; return {lo: tr(s[0]), hi: tr(s[s.length - 1]), tr}; };
+
+// ------------------------------------------------------------------ strips
+let SP = null, sHover = null;
+const jitter = i => { const x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x) - .5; };
+function drawS() {
+  const cv = document.getElementById('scv');
+  const {ctx, w, h} = setupCanvas(cv);
+  const met = state.metric, {lo, hi, tr} = scaleOf(met), rows = stripRows(w), rowH = h / rows.length, gap = 14;
+  const curIdx = cur(), evon = css('--evon'), muted = css('--text-muted'), surf = css('--surface-1');
+  SP = {dots: []}; ctx.font = FONT;
+  rows.forEach((keys, rr) => {
+    const units = keys.reduce((a, k) => a + G[k].length + 1, 0), unitW = (w - 34 - gap * (keys.length - 1)) / units, top = rr * rowH;
+    let left = 0;
+    keys.forEach((k, kk) => {
+      const pw = unitW * (G[k].length + 1) + (kk === 0 ? 34 : 0);
+      const x0 = left + (kk === 0 ? 34 : 6), x1 = left + pw - 4, y0 = top + 18, y1 = top + rowH - 22; left += pw + gap;
+      const nv = G[k].length, cw = (x1 - x0) / nv, cx = j => x0 + (j + .5) * cw, sy = v => y1 - (tr(v) - lo) / (hi - lo) * (y1 - y0);
+      ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1; ctx.fillStyle = muted; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      const ticks = METRICS[met].log ? niceTicks(lo, hi, 4).filter(Number.isInteger).map(t => Math.pow(10, t)) : niceTicks(lo, hi, 4);
+      for (const t of ticks) { const y = sy(t); ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); if (kk === 0) ctx.fillText(METRICS[met].log ? '1e' + Math.round(Math.log10(t)) : fnum(t, 2), x0 - 4, y); }
+      ctx.fillStyle = css('--text-secondary'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(SHORT[k], x0, y0 - 4);
+      ctx.fillStyle = muted; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      G[k].forEach((v, j) => ctx.fillText(k === 'lr_mult' ? '×' + v : ['beta1', 'beta2', 'beta3'].includes(k) ? (v === -1 ? 'tied' : String(v).replace(/^0/, '')) : fmt(k, v), cx(j), y1 + 5));
+      const med = G[k].map(() => []);
+      ctx.fillStyle = muted; ctx.globalAlpha = .25;
+      D.runs.forEach((r, idx) => {
+        const v = mval(r, met); if (v == null) return;
+        const j = selOf(idx)[k], x = cx(j) + jitter(idx) * cw * .6, y = sy(v);
+        ctx.fillRect(x - 1, y - 1, 2, 2); med[j].push(v); SP.dots.push({x, y, idx});
+      });
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = css('--text-secondary'); ctx.lineWidth = 2;
+      med.forEach((a, j) => { if (!a.length) return; a.sort((p, q) => p - q); const y = sy(a[Math.floor(a.length / 2)]); ctx.beginPath(); ctx.moveTo(cx(j) - cw * .34, y); ctx.lineTo(cx(j) + cw * .34, y); ctx.stroke(); });
+      const pts = G[k].map((_, j) => { const idx = idxOf({...state.sel, [k]: j}), v = mval(D.runs[idx], met); return v == null ? null : {x: cx(j) + jitter(idx) * cw * .6, y: sy(v), idx}; });
+      ctx.strokeStyle = evon; ctx.lineWidth = 1.5; ctx.beginPath(); let pen = false;
+      for (const p of pts) { if (!p) { pen = false; continue; } pen ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); pen = true; }
+      ctx.stroke();
+      for (const p of pts) if (p) dotAt(ctx, p.x, p.y, p.idx === curIdx ? 5 : 3, evon, p.idx === curIdx ? surf : null);
+      for (const [idx, col] of [[sHover, css('--text-primary')], [state.pin, css('--pin')]]) {
+        if (idx == null) continue; const v = mval(D.runs[idx], met); if (v == null) continue;
+        const x = cx(selOf(idx)[k]) + jitter(idx) * cw * .6; ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, sy(v), 6, 0, 7); ctx.stroke();
+      }
+    });
+  });
+  const B = METRICS[met].better;
+  document.getElementById('metricdir').textContent = (METRICS[met].log ? 'log scale' : 'linear scale') + (B ? ` · ${B === 'high' ? 'higher' : 'lower'} is better` : ' · descriptive') + ' · shared with the heatmap below';
+}
+
+// ------------------------------------------------------------------ heatmap
+let H = {}, hHover = null;
+function drawH() {
+  const ax = document.getElementById('ax').value, ay = document.getElementById('ay').value, met = state.metric;
+  const cv = document.getElementById('hcv');
+  const {ctx, w, h} = setupCanvas(cv);
+  const nx = G[ax].length, ny = G[ay].length, m = narrow(w) ? {l: 62, r: 4, t: 6, b: 36} : {l: 150, r: 10, t: 10, b: 36};
+  // cells grow with the card, up to twice as wide as tall; leftover width centres the grid
+  const ch = (h - m.t - m.b) / ny, room = w - m.l - m.r, cw = Math.min(room / nx, Math.max(90, 2 * ch)), vals = [];
+  if (!narrow(w)) m.l += (room - nx * cw) / 2;
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const s = {...state.sel, [ax]: i, [ay]: j}, r = D.runs[idxOf(s)]; vals.push({i, j, s, r, v: mval(r, met)}); }
+  const {tr} = scaleOf(met); let lo, hi;
+  if (document.getElementById('hscale').value === 'slice') { const f = vals.map(c => c.v).filter(v => v != null).map(tr); lo = Math.min(...f); hi = Math.max(...f); }
+  else ({lo, hi} = scaleOf(met));
+  if (!isFinite(lo)) { lo = 0; hi = 1; } if (hi - lo < 1e-9) hi = lo + 1e-9;
+  const seq = SEQ(); ctx.font = FONT;
+  for (const c of vals) {
+    const x = m.l + c.i * cw, y = m.t + c.j * ch;
+    if (c.v == null) { ctx.fillStyle = css('--seq-0'); ctx.fillRect(x + 1, y + 1, cw - 2, ch - 2); ctx.fillStyle = css('--text-muted'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(c.r.d === -1 ? '…' : '×', x + cw / 2, y + ch / 2); }
+    else {
+      const col = ramp(seq, (tr(c.v) - lo) / (hi - lo)); ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(x + 1, y + 1, cw - 2, ch - 2, 3); ctx.fill();
+      if (cw > 46) { const lum = hex2rgb(col).reduce((a, v, k) => a + v * [.299, .587, .114][k], 0); ctx.fillStyle = lum < 140 ? '#fff' : '#0b0b0b'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(fnum(c.v, 3), x + cw / 2, y + ch / 2); }
+    }
+    if (hHover && c.i === hHover.i && c.j === hHover.j) { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 8; ctx.strokeStyle = css('--surface-1'); ctx.lineWidth = 2.5; ctx.strokeRect(x + 2, y + 2, cw - 4, ch - 4); ctx.restore(); }
+    if (c.i === state.sel[ax] && c.j === state.sel[ay]) { ctx.strokeStyle = css('--text-primary'); ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, cw - 2, ch - 2); }
+  }
+  const lab = (k, v) => k === 'lr_mult' ? fmtLr(val('whiten_prec_grad'), v) : fmt(k, v);
+  ctx.fillStyle = css('--text-secondary'); ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let j = 0; j < ny; j++) ctx.fillText(lab(ay, G[ay][j]), m.l - 6, m.t + (j + .5) * ch);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let i = 0; i < nx; i++) ctx.fillText(lab(ax, G[ax][i]), m.l + (i + .5) * cw, m.t + ny * ch + 4);
+  ctx.fillText(SHORT[ax], m.l + nx * cw / 2, m.t + ny * ch + 20);
+  ctx.save(); ctx.translate(narrow(w) ? 2 : m.l - 70, m.t + ny * ch / 2); ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'top'; ctx.fillText(SHORT[ay], 0, 0); ctx.restore();
+  H = {m, cw, ch, nx, ny, vals, ax, ay};
+  const inv = v => METRICS[met].log ? Math.pow(10, v) : v, B = METRICS[met].better;
+  document.getElementById('hleg').innerHTML = `<span>${METRICS[met].name}${B ? `, ${B === 'high' ? 'higher' : 'lower'} is better` : ''}:</span><span style="display:inline-flex;align-items:center;gap:5px">${fnum(inv(lo), 3)}<span style="display:inline-block;width:140px;height:9px;border-radius:2px;background:linear-gradient(90deg,${seq.join(',')})"></span>${fnum(inv(hi), 3)}</span><span style="color:var(--text-muted)">× diverged</span>`;
+}
+
+// ------------------------------------------------------------------ side panel
+function drawBest() {
+  const met = state.metric, B = METRICS[met].better, fixed = ['whiten_prec_grad', 'precondition_frequency'];
+  document.getElementById('bestcol').textContent = {auroc: 'AUROC', test_nll: 'NLL', ece: 'ECE', mi_far: 'MI far', mi_test: 'MI test', sample_gap: 'gap', below: 'prior'}[met];
+  if (!B) { document.getElementById('best').innerHTML = '<tr><td colspan="7" style="text-align:left;color:var(--text-muted)">descriptive metric: no ranking</td></tr>'; return; }
+  const rows = D.runs.map((r, idx) => ({r, idx, s: selOf(idx), v: mval(r, met)})).filter(o => fixed.every(k => o.s[k] === state.sel[k]) && o.v != null && fits(o.r)).sort((a, b) => better(met, a.v, b.v)).slice(0, 12);
+  const c = cur();
+  document.getElementById('best').innerHTML = rows.map((o, k) => `<tr data-idx="${o.idx}" class="${o.idx === c ? 'cur' : ''}"><td>${k + 1}</td><td>${fmtLr(G.whiten_prec_grad[o.s.whiten_prec_grad], G.lr_mult[o.s.lr_mult])}</td><td>${fmt('weight_decay', G.weight_decay[o.s.weight_decay])}</td><td>${fmt('hess_init', G.hess_init[o.s.hess_init])}</td><td>${fmt('ess', G.ess[o.s.ess])}</td><td>${G.beta2[o.s.beta2]}</td><td>${fnum(o.v, 3)}</td></tr>`).join('');
+}
+let _ranks = null;
+function drawMetrics() {
+  const r = run(), met = state.metric, M = METRICS[met], pin = state.pin != null ? D.runs[state.pin] : null;
+  document.getElementById('divbadge').innerHTML = r.d > 0 ? '<span class="badge bad">diverged</span>' : r.d === -1 ? '<span class="badge">not run yet</span>' : '';
+  const v = mval(r, met), s = sortedVals(met), {lo, hi, tr} = scaleOf(met);
+  document.getElementById('heroNum').textContent = fnum(v, 3);
+  // keep the help icon glued to the last word so it never wraps onto a line of its own
+  const sp = M.name.lastIndexOf(' ');
+  document.getElementById('heroUnit').innerHTML = `${M.name.slice(0, sp + 1)}<span style="white-space:nowrap">${M.name.slice(sp + 1)}${qi(M.tip)}</span>`;
+  const pos = x => x == null ? null : 100 * Math.max(0, Math.min(1, (tr(x) - lo) / (hi - lo)));
+  const mk = document.getElementById('mk'), mp = document.getElementById('mkpin');
+  mk.hidden = v == null; if (v != null) mk.style.left = pos(v) + '%';
+  const pv = pin && mval(pin, met); mp.hidden = pv == null; if (pv != null) mp.style.left = pos(pv) + '%';
+  document.getElementById('meterLo').textContent = fnum(s[0], 3); document.getElementById('meterHi').textContent = fnum(s[s.length - 1], 3);
+  const fv = fitVals(met);
+  document.getElementById('meterRank').textContent = v == null || !M.better ? '' : !fits(r) ? 'does not fit the data (test acc < 99%)'
+    : `better than ${Math.round(100 * fv.filter(x => M.better === 'high' ? x < v : x > v).length / fv.length)}% of runs that fit`;
+  const rows = MKEYS.filter(k => k !== met).map(k => [`${METRICS[k].name}${qi(METRICS[k].tip)}`, fnum(mval(r, k), 3)]);
+  rows.push(['test accuracy', r.test_acc == null ? '—' : (100 * r.test_acc).toFixed(1) + '%']);
+  document.getElementById('metrics').innerHTML = rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+  const cols = [['this run', r, 'evon'], ...(pin ? [['pinned', pin, 'pin']] : []), ...Object.entries(REFS).map(([k, n]) => [n.replace(' (nb 2)', ''), D.refs[k].s, 'text-secondary'])];
+  document.getElementById('cmphead').innerHTML = `<tr><th></th>${cols.map(([n, , c]) => `<th style="color:var(--${c === 'pin' ? 'text-secondary' : c})">${n.replace('IVON, ', 'IVON ')}</th>`).join('')}</tr>`;
+  document.getElementById('cmp').innerHTML = ['auroc', 'test_nll', 'mi_far', 'below'].map(k => `<tr><td>${{auroc: 'AUROC', test_nll: 'test NLL', mi_far: 'MI far', below: 'prior-bound'}[k]}</td>${cols.map(([, x]) => `<td>${fnum(x && (x.d === 0 || x.d === undefined) ? x[k] : null, 3)}</td>`).join('')}</tr>`).join('');
+  const pb = document.getElementById('pinbtn'); pb.textContent = pin ? (state.pin === cur() ? '📌 unpin' : '📌 re-pin here') : '📌 pin';
+  document.getElementById('pinleg').style.display = pin ? '' : 'none';
+}
+
+// ------------------------------------------------------------------ controls
+function buildControls() {
+  const root = document.getElementById('controls'); root.innerHTML = '';
+  for (const k of KEYS) {
+    const div = document.createElement('div'); div.className = 'ctrl';
+    if (G[k].length <= 2) div.innerHTML = `<div class="lab"><span>${LABEL[k]}${qi(WHY[k])}</span></div><div class="seg">${G[k].map((v, i) => `<button data-k="${k}" data-i="${i}">${fmt(k, v)}</button>`).join('')}</div>`;
+    else div.innerHTML = `<div class="lab"><span>${LABEL[k]}${qi(WHY[k])}</span><b></b></div><input type="range" min="0" max="${G[k].length - 1}" step="1" data-k="${k}"><div class="ticks">${G[k].map(v => `<span>${fmt(k, v)}</span>`).join('')}</div>`;
+    root.appendChild(div);
+  }
+  root.querySelectorAll('button[data-k]').forEach(b => b.onclick = () => { state.sel[b.dataset.k] = +b.dataset.i; update(true); });
+  root.querySelectorAll('input[data-k]').forEach(inp => inp.oninput = () => { state.sel[inp.dataset.k] = +inp.value; update(true); });
+}
+function syncControls() {
+  document.querySelectorAll('#controls button[data-k]').forEach(b => b.classList.toggle('on', +b.dataset.i === state.sel[b.dataset.k]));
+  document.querySelectorAll('#controls input[data-k]').forEach(inp => {
+    const k = inp.dataset.k; inp.value = state.sel[k]; inp.style.setProperty('--fill', `${100 * inp.value / inp.max}%`);
+    inp.closest('.ctrl').querySelector('b').textContent = k === 'lr_mult' ? fmtLr(val('whiten_prec_grad'), val('lr_mult')) : fmt(k, val(k));
+  });
+  document.querySelectorAll('.metricsel').forEach(s => s.value = state.metric);
+  document.getElementById('wide').classList.toggle('on', state.wide);
+  document.querySelectorAll('#shade button').forEach(b => b.classList.toggle('on', b.dataset.v === state.shade));
+  document.querySelectorAll('#covmode button').forEach(b => b.classList.toggle('on', b.dataset.v === state.covmode));
+}
+function drawTime() {
+  const ts = document.getElementById('tstep'); ts.max = NC - 1; ts.value = state.t; ts.style.setProperty('--fill', `${100 * state.t / (NC - 1)}%`);
+  document.getElementById('tval').textContent = `step ${D.steps[state.t].toLocaleString()} / ${STEPS.toLocaleString()}`;
+}
+function drawLoading() {
+  for (const id of ['xcv', 'lcv', 'hcv2', 'ccv']) {
+    const {ctx, w, h} = setupCanvas(document.getElementById(id));
+    ctx.fillStyle = css('--text-muted'); ctx.font = '13px ui-sans-serif, system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(loadError ? `could not load ${loadError}` : run().d === -1 ? 'this run has not finished yet' : 'loading this block of runs…', w / 2, h / 2);
+  }
+}
+const plotCards = () => ['xcv', 'lcv', 'hcv2', 'ccv', 'covgrid'].map(id => document.getElementById(id).closest('.card'));
+let lastKey = null;
+function update(animate) {
+  syncControls(); drawTime();
+  const need = missing();
+  plotCards().forEach(c => c.classList.toggle('loading', need.length > 0 && !loadError));
+  if (need.length) {
+    drawLoading();
+    Promise.all(need.map(i => loadShard(shardOf(i)))).then(() => { loadError = null; update(animate); }, e => { loadError = e.message; plotCards().forEach(c => c.classList.remove('loading')); drawLoading(); });
+  } else if (run().d === -1) { drawLoading(); }
+  else {
+    const key = cur(), changed = key !== lastKey; lastKey = key;
+    withFade(document.getElementById('xcv'), drawX, animate && changed);
+    drawL(); drawSpec(); drawC(); drawCov(animate && changed);
+  }
+  drawS(); drawBest(); drawH(); drawMetrics();
+  history.replaceState(null, '', '#' + KEYS.map(k => `${k}=${state.sel[k]}`).join('&') + (state.pin != null ? `&pin=${state.pin}` : ''));
+}
+function updateFrame() { drawTime(); if (missing().length || run().d === -1) return; drawX(); drawC(); }
+
+function preset(p) {
+  if (p === 'nb') state.sel = selOf(D.nb);
+  else {
+    const met = METRICS[state.metric].better ? state.metric : 'auroc';
+    const c = D.runs.map((r, idx) => ({idx, r, v: mval(r, met)})).filter(o => o.v != null && fits(o.r)).sort((a, b) => better(met, a.v, b.v));
+    state.sel = selOf((p === 'best' ? c[0] : c[c.length - 1]).idx);
+  }
+  state.t = NC - 1; update(true);
+}
+document.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => preset(b.dataset.preset));
+
+// ------------------------------------------------------------------ what to try
+const TRY = [
+  ['Pin notebook 2’s setting, then set β₂ = 0.999: far-from-data detection improves in 77% of matched runs (median +0.11 AUROC). At 0.9999 the curvature never leaves h₀ and it drops in 85%.', {pin: true, set: {beta2: 0.999}}],
+  ['At β₂ = 0.999, raise weight decay to 1e-3: almost all hidden-layer directions fall below the dashed line in the curvature spectrum, the prior caps their variance, and AUROC is lower in 96% of matched runs. 1e-6 and 1e-5 behave alike.', {set: {beta2: 0.999, weight_decay: 1e-3}}],
+  ['Lower ess to 1e4 for a wider posterior: better in 70% of matched runs; 1e5 is worse in 76%.', {set: {ess: 1e4}}],
+  ['Switch the covariance panel to correlation and compare with the IVON baselines: only EVON has off-diagonal structure, and it sits inside each layer.', {covmode: 'corr'}],
+  ['precondition_frequency, β₃ and β₁ barely matter here: each change helps in only 50–57% of matched runs. Whitening helps in 64%.', null],
+];
+function buildTry() {
+  document.getElementById('try').innerHTML = TRY.map(([t, a], i) => `<li>${t}${a ? ` <a data-try="${i}">show me</a>` : ''}</li>`).join('') || '<li>—</li>';
+  document.querySelectorAll('[data-try]').forEach(el => el.onclick = () => {
+    const a = TRY[+el.dataset.try][1];
+    if (a.pin) { state.sel = selOf(D.nb); state.pin = cur(); }
+    for (const [k, v] of Object.entries(a.set || {})) state.sel[k] = G[k].indexOf(v);
+    if (a.metric) state.metric = a.metric;
+    if (a.covmode) state.covmode = a.covmode;
+    state.t = NC - 1; update(true);
+  });
+}
+
+// ------------------------------------------------------------------ wiring
+for (const s of document.querySelectorAll('.metricsel')) s.innerHTML = MKEYS.map(k => `<option value="${k}">${METRICS[k].name}</option>`).join('');
+for (const id of ['ax', 'ay']) document.getElementById(id).innerHTML = KEYS.map(k => `<option value="${k}">${SHORT[k]}</option>`).join('');
+document.getElementById('ax').value = 'weight_decay'; document.getElementById('ay').value = 'beta2';
+['ax', 'ay', 'hscale'].forEach(id => document.getElementById(id).onchange = drawH);
+document.querySelectorAll('.metricsel').forEach(s => s.onchange = () => { state.metric = s.value; syncControls(); drawS(); drawBest(); drawH(); drawMetrics(); });
+document.querySelectorAll('[data-layer]').forEach(c => { c.checked = !!state.layers[c.dataset.layer]; c.onchange = () => { state.layers[c.dataset.layer] = +c.checked; drawX(); }; });
+document.querySelectorAll('#shade button').forEach(b => b.onclick = () => { state.shade = b.dataset.v; syncControls(); withFade(document.getElementById('xcv'), drawX, true); });
+document.querySelectorAll('#covmode button').forEach(b => b.onclick = () => { state.covmode = b.dataset.v; syncControls(); drawCov(true); });
+document.getElementById('covsrc').onchange = e => { state.covsrc = e.target.value; drawCov(true); };
+document.getElementById('tstep').oninput = e => { state.t = +e.target.value; updateFrame(); };
+document.getElementById('best').onclick = e => { const tr = e.target.closest('tr'); if (tr && tr.dataset.idx) { state.sel = selOf(+tr.dataset.idx); update(true); } };
+document.getElementById('pinbtn').onclick = () => { state.pin = state.pin === cur() ? null : cur(); update(false); };
+document.getElementById('wide').onclick = () => { state.wide = !state.wide; xview = {...(state.wide ? WIDE : NBVIEW)}; syncControls(); withFade(document.getElementById('xcv'), drawX, true); };
+let playing = null;
+document.getElementById('play').onclick = () => {
+  const b = document.getElementById('play');
+  if (playing) { clearInterval(playing); playing = null; b.textContent = '▶ play'; return; }
+  if (state.t >= NC - 1) state.t = 0;
+  b.textContent = '❚❚ pause';
+  playing = setInterval(() => { state.t++; if (state.t >= NC - 1) { state.t = NC - 1; clearInterval(playing); playing = null; b.textContent = '▶ play'; } updateFrame(); }, 140);
+};
+document.getElementById('theme').onclick = () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark'; try { localStorage.setItem('evon-theme', document.documentElement.dataset.theme); } catch (e) {} update(false);
+};
+const hcv = document.getElementById('hcv');
+const hcell = e => { const b = hcv.getBoundingClientRect(), i = Math.floor((e.clientX - b.left - H.m.l) / H.cw), j = Math.floor((e.clientY - b.top - H.m.t) / H.ch); return i >= 0 && i < H.nx && j >= 0 && j < H.ny ? H.vals.find(c => c.i === i && c.j === j) : null; };
+const runTip = r => r.d > 0 ? 'diverged' : r.d === -1 ? 'not run yet' : ['auroc', 'test_nll', 'mi_far', 'below'].map(k => `<span class="m">${METRICS[k].name}</span> ${fnum(r[k], 3)}`).join('<br>');
+const setHHover = c => { const k = c ? c.i + ',' + c.j : null; if (k !== (hHover && hHover.i + ',' + hHover.j)) { hHover = c; drawH(); } };
+hcv.onmousemove = e => { const c = hcell(e); setHHover(c); if (!c) { hideTip(); hcv.style.cursor = ''; return; } showTip(e, `<b>${SHORT[H.ax]} ${fmt(H.ax, G[H.ax][c.i])}, ${SHORT[H.ay]} ${fmt(H.ay, G[H.ay][c.j])}</b><br>` + runTip(c.r)); hcv.style.cursor = 'pointer'; };
+hcv.onmouseleave = () => { hideTip(); setHHover(null); };
+hcv.onclick = e => { const c = hcell(e); if (c) { state.sel = {...c.s}; update(true); } };
+const scv = document.getElementById('scv');
+const sdot = e => { const b = scv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top; let best = null, bd = 49; for (const d of SP.dots) { const dd = (d.x - x) ** 2 + (d.y - y) ** 2; if (dd < bd) { bd = dd; best = d; } } return best; };
+const setSHover = idx => { if (idx !== sHover) { sHover = idx; drawS(); } };
+scv.onmousemove = e => { const d = sdot(e); setSHover(d ? d.idx : null); if (!d) { hideTip(); scv.style.cursor = ''; return; } showTip(e, `<b>#${d.idx}</b> <span class="m">${cfgText(d.idx)}</span><br>` + runTip(D.runs[d.idx])); scv.style.cursor = 'pointer'; };
+scv.onmouseleave = () => { hideTip(); setSHover(null); };
+scv.onclick = e => { const d = sdot(e); if (d) { state.sel = selOf(d.idx); update(true); } };
+const ccv = document.getElementById('ccv'); let scrub = false;
+ccv.onpointerdown = e => { if (!C) return; scrub = true; ccv.setPointerCapture(e.pointerId); state.t = curveStepAt(e).i; updateFrame(); };
+ccv.onpointerup = () => scrub = false;
+ccv.onpointermove = e => { if (!C) return; const {i, p} = curveStepAt(e); if (scrub) { state.t = i; updateFrame(); } showTip(e, `<b>step ${D.steps[i].toLocaleString()}</b> · ${p.pn.title}<br>` + p.pn.lines.filter(([a]) => a).map(([a], k) => `${p.pn.lines.length > 2 ? 'W' + (k + 1) : k ? 'pinned' : 'this run'}: ${fnum(a[Math.min(i, a.length - 1)], 3)}`).join('<br>')); };
+ccv.onpointerleave = hideTip;
+const xcv = document.getElementById('xcv');
+xcv.addEventListener('wheel', e => { e.preventDefault(); const P = xcv._P, b = xcv.getBoundingClientRect(), cx = P.ix(e.clientX - b.left), cy = P.iy(e.clientY - b.top), f = Math.exp(e.deltaY * .0015); xview = {x0: cx + (xview.x0 - cx) * f, x1: cx + (xview.x1 - cx) * f, y0: cy + (xview.y0 - cy) * f, y1: cy + (xview.y1 - cy) * f}; drawX(); }, {passive: false});
+let drag = null;
+xcv.onpointerdown = e => { if (e.pointerType === 'touch') return; drag = {x: e.clientX, y: e.clientY, v: {...xview}}; xcv.setPointerCapture(e.pointerId); };
+xcv.onpointermove = e => { if (!drag) return; const sc = xcv._P.sc, dx = (e.clientX - drag.x) / sc, dy = (e.clientY - drag.y) / sc; xview = {x0: drag.v.x0 - dx, x1: drag.v.x1 - dx, y0: drag.v.y0 + dy, y1: drag.v.y1 + dy}; drawX(); };
+xcv.onpointerup = () => drag = null;
+xcv.ondblclick = () => { xview = {...(state.wide ? WIDE : NBVIEW)}; drawX(); };
+let lastW = innerWidth;
+window.addEventListener('resize', () => { if (innerWidth === lastW) return; lastW = innerWidth; update(false); });
+window.addEventListener('hashchange', () => { loadHash(); update(true); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => update(false));
+{ const done = D.runs.filter(r => r.d !== -1).length, pv = document.getElementById('preview');
+  if (done < D.runs.length) { pv.hidden = false; pv.textContent = `preview · ${done.toLocaleString()}/${D.runs.length.toLocaleString()} runs`; } }
+buildControls(); buildCovGrid(); buildTry(); update(false);
+</script>
+</body>
+</html>
